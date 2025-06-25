@@ -159,6 +159,7 @@ export default function TextDiffEditor() {
                       {item.comparedTo ? 
                         renderInlineDiff(item.line, item.comparedTo).filter((part: any, idx: number) => 
                           React.isValidElement(part) ? 
+                            // @ts-ignore  
                             part.props.className?.includes('bg-red-200') || !part.props.className?.includes('bg-green-200')
                             : true
                         ) : 
@@ -174,6 +175,7 @@ export default function TextDiffEditor() {
                       {item.comparedTo ? 
                         renderInlineDiff(item.comparedTo, item.line).filter((part: any, idx: number) => 
                           React.isValidElement(part) ? 
+                            // @ts-ignore  
                             part.props.className?.includes('bg-green-200') || !part.props.className?.includes('bg-red-200')
                             : true
                         ) : 
@@ -243,6 +245,7 @@ export default function TextDiffEditor() {
                       renderInlineDiff(line.original, line.changed).filter((part, idx, arr) => 
                         // only show removed parts for original side
                         React.isValidElement(part) ? 
+                          // @ts-ignore  
                           part.props.className?.includes('bg-red-200') || !part.props.className?.includes('bg-green-200')
                           : true
                       ) : 
@@ -278,8 +281,9 @@ export default function TextDiffEditor() {
                   <span className="flex-1">
                     {hasChange && line.original && line.changed ? 
                       renderInlineDiff(line.original, line.changed).filter((part, idx, arr) => 
-                        // Only show added parts for changed side
+                        // only show added parts for changed side
                         React.isValidElement(part) ? 
+                          // @ts-ignore  
                           part.props.className?.includes('bg-green-200') || !part.props.className?.includes('bg-red-200')
                           : true
                       ) : 
@@ -375,13 +379,13 @@ export default function TextDiffEditor() {
               >
                 Save
               </button>
-              {/* <button
+              <button
                 onClick={handleShare}
                 className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 focus:ring-2 focus:ring-green-500"
               >
                 <Share2 className="w-4 h-4" />
                 Share
-              </button> */}
+              </button>
             </div>
           </div>
         </div>

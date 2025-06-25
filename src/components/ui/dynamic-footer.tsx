@@ -29,11 +29,10 @@ function DynamicFooter() {
           { href: "/text-compare", label: "Text Compare" },
           { href: "/spreadsheet-compare", label: "Spreadsheet Compare" },
           { href: "/json-compare", label: "JSON Compare" },
-          { href: "/contact", label: "Contact" },
         ]}
         legalLinks={[
-          { href: "/privacy", label: "Privacy" },
-          { href: "/terms", label: "Terms" },
+/*           { href: "/privacy", label: "Privacy" },
+          { href: "/terms", label: "Terms" }, */
         ]}
         copyright={{
           text: "© 2025 Asadbek Karimov",

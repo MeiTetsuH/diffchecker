@@ -150,7 +150,7 @@ export const HeroSection = ({
     }, []);
 
     useEffect(() => {
-        const canvas: HTMLCanvasElement = canvasRef.current;
+        const canvas = canvasRef.current;
         if (!canvas || !targetRef.current) return;
 
         ctxRef.current = canvas.getContext("2d");
