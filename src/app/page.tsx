@@ -1,4 +1,3 @@
-import { DynamicFooter } from "@/components/ui/dynamic-footer";
 import { HeroSection } from "@/components/ui/dynamic-hero";
 import { BaseLayout } from "@/layout/base-layout";
 
@@ -14,7 +13,6 @@ export default function Home() {
           imageUrl="https://cdn.plyr.io/static/demo/View_From_A_Blue_Moon_Trailer-HD.jpg"
           videoUrl="https://github.com/ShatteredDisk/rickroll/raw/refs/heads/master/rickroll.mp4"
         />
-        <DynamicFooter />
       </BaseLayout>
     </div>
   );

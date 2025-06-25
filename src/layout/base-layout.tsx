@@ -1,6 +1,7 @@
 'use client'
 import { ReactNode } from 'react';
 import { Navbar } from '@/components/ui/navbar';
+import { DynamicFooter } from '@/components/ui/dynamic-footer';
 
 interface NavItem {
   id: string;
@@ -13,13 +14,15 @@ interface BaseLayoutProps {
   children: ReactNode;
   navItems?: NavItem[];
   showNavbar?: boolean;
+  showFooter?: boolean;
   className?: string;
 }
 
 export const BaseLayout = ({ 
   children, 
   navItems, 
-  showNavbar = true, 
+  showNavbar = true,
+  showFooter = true,
   className = '' 
 }: BaseLayoutProps) => {
   return (
@@ -28,6 +31,7 @@ export const BaseLayout = ({
       <main className="flex-grow">
         {children}
       </main>
+      {showFooter && <DynamicFooter />}
     </div>
   );
 };
