@@ -21,23 +21,29 @@ const PlayIcon = ({ className = "w-6 h-6" }) => (
     </svg>
 );
 
-const defaultNavItems = [
-    { id: 'home', label: 'Home', onClick: () => console.info('Default Home clicked') },
-    { id: 'text', label: 'Text', href: '/text-compare' },
-    { id: 'excel', label: 'Excel', href: '#excel-section' },
-    { id: 'login', label: 'Login', href: '#login-section' },
-];
+interface HeroSectionProps {
+    heading: string;
+    tagline: string;
+    buttonText: string;
+    buttonHref?: string;
+    imageUrl?: string;
+    videoUrl?: string;
+    onButtonClick?: () => void;
+    className?: string;
+}
 
-const HeroSection = ({
+export const HeroSection = ({
     heading,
     tagline,
     buttonText,
+    buttonHref = '/text-compare',
     imageUrl,
     videoUrl,
-    navItems = defaultNavItems,
-}) => {
+    onButtonClick,
+    className = ''
+}: HeroSectionProps) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const targetRef = useRef<HTMLElement>(null);
+    const targetRef = useRef<HTMLButtonElement>(null);
     const mousePosRef = useRef({ x: null, y: null });
     const ctxRef = useRef<CanvasRenderingContext2D>(null);
     const animationFrameIdRef = useRef<number>(null);
@@ -86,7 +92,7 @@ const HeroSection = ({
     const drawArrow = useCallback(() => {
         if (!canvasRef.current || !targetRef.current || !ctxRef.current) return;
 
-        const targetEl: HTMLElement = targetRef.current;
+        const targetEl = targetRef.current;
         const ctx: CanvasRenderingContext2D = ctxRef.current;
         const mouse = mousePosRef.current;
 
@@ -111,27 +117,23 @@ const HeroSection = ({
         const controlY = midY + offset * t;
         
         const r = Math.sqrt((x1 - x0)**2 + (y1 - y0)**2);
-        // Increase max opacity to 1 (fully opaque) and adjust divisor for quicker ramp-up
         const opacity = Math.min(1.0, (r - Math.max(rect.width, rect.height) / 2) / 500); 
 
         const arrowColor = resolvedCanvasColorsRef.current.strokeStyle;
         ctx.strokeStyle = `rgba(${arrowColor.r}, ${arrowColor.g}, ${arrowColor.b}, ${opacity})`;
-        // Increase line width for more visibility
-        ctx.lineWidth = 2; // Changed from 1.5 to 2
+        ctx.lineWidth = 2;
 
         // Draw curve
         ctx.save();
         ctx.beginPath();
         ctx.moveTo(x0, y0);
         ctx.quadraticCurveTo(controlX, controlY, x1, y1);
-        // Adjust dash pattern for thicker line: longer dashes, similar gap
-        ctx.setLineDash([10, 5]); // e.g., 10px dash, 5px gap
+        ctx.setLineDash([10, 5]);
         ctx.stroke();
         ctx.restore();
 
         // Draw arrowhead
         const angle = Math.atan2(y1 - controlY, x1 - controlX);
-        // Scale arrowhead with line width, base size 10 for lineWidth 1.5
         const headLength = 10 * (ctx.lineWidth / 1.5); 
         ctx.beginPath();
         ctx.moveTo(x1, y1);
@@ -216,101 +218,79 @@ const HeroSection = ({
         }
     };
 
+    const handleButtonClick = () => {
+        if (onButtonClick) {
+            onButtonClick();
+        } else if (buttonHref) {
+            window.location.href = buttonHref;
+        }
+    };
+
     return (
-        <div className="bg-background text-foreground min-h-screen flex flex-col">
-            <nav className="w-full max-w-screen-md mx-auto flex flex-wrap justify-center sm:justify-between items-center px-4 sm:px-8 py-4 text-sm">
-                {navItems.map((item) => {
-                    const commonProps = {
-                        className: "py-2 px-3 sm:px-4 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/10 dark:hover:bg-accent/20 focus:outline-none focus:ring-2 focus:ring-ring transition-colors duration-150 ease-in-out whitespace-nowrap",
-                        onClick: item.onClick,
-                    };
-                    if (item.href) {
-                        return (
-                            <a 
-                                key={item.id}
-                                href={item.href} 
-                                target={item.target} 
-                                rel={item.target === '_blank' ? 'noopener noreferrer' : undefined} 
-                                {...commonProps}
-                            >
-                                {item.label}
-                            </a>
-                        );
-                    }
-                    return (
-                        <button 
-                            key={item.id}
-                            type="button" 
-                            {...commonProps}
-                        >
-                            {item.label}
-                        </button>
-                    );
-                })}
-            </nav>
+        <div className={`flex flex-col items-center justify-center min-h-[calc(100vh-80px)] ${className}`}>
+            <div className="mt-12 sm:mt-16 lg:mt-24 flex flex-col items-center">
+                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-medium text-center px-4">
+                    {heading}
+                </h1>
+                <p className="mt-3 block text-muted-foreground text-center text-base sm:text-lg px-4 max-w-xl">
+                    {tagline}
+                </p>
+            </div>
 
-            <main className="flex-grow flex flex-col items-center justify-center">
-                <div className="mt-12 sm:mt-16 lg:mt-24 flex flex-col items-center">
-                    <h1 className="text-3xl sm:text-4xl lg:text-5xl font-medium text-center px-4">
-                        {heading}
-                    </h1>
-                    <p className="mt-3 block text-muted-foreground text-center text-base sm:text-lg px-4 max-w-xl">
-                        {tagline}
-                    </p>
-                </div>
+            <div className="mt-8 flex justify-center">
+                <button
+                    ref={targetRef}
+                    onClick={handleButtonClick}
+                    className="py-2 px-4 rounded-xl border border-foreground/50 hover:border-foreground/80 text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                    {buttonText}
+                </button>
+            </div>
 
-                <div className="mt-8 flex justify-center">
-                    <button
-                        onClick={() => window.location.href = '/text-compare'}
-                        className="py-2 px-4 rounded-xl border border-foreground/50 hover:border-foreground/80 text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
+            <div className="mt-12 lg:mt-24 w-full max-w-screen-lg mx-auto overflow-hidden px-4 sm:px-2">
+                <div className="bg-border rounded-[2rem] p-[0.25rem]">
+                    <div 
+                        
+                        className="relative h-64 sm:h-72 md:h-80 lg:h-96 rounded-[1.75rem] bg-card flex items-center justify-center overflow-hidden"
                     >
-                        {buttonText}
-                    </button>
-                </div>
-
-                <div className="mt-12 lg:mt-24 w-full max-w-screen-lg mx-auto overflow-hidden px-4 sm:px-2">
-                    <div className="bg-border rounded-[2rem] p-[0.25rem]">
-                        <div className="relative h-64 sm:h-72 md:h-80 lg:h-2/5 rounded-[1.75rem] bg-card flex items-center justify-center overflow-hidden">
-                            {imageUrl && (
-                                <img
-                                    src={imageUrl}
-                                    alt="Preview"
-                                    className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${
-                                        showVideo ? 'opacity-0 pointer-events-none' : 'opacity-100'
-                                    }`}
-                                />
-                            )}
-                            {videoUrl && (
-                                <video
-                                    ref={videoRef}
-                                    src={videoUrl}
-                                    muted
-                                    playsInline
-                                    className={`w-full h-full object-cover transition-opacity duration-300 ${
-                                        showVideo ? 'opacity-100' : 'opacity-0 pointer-events-none'
-                                    }`}
-                                />
-                            )}
-                            {!showVideo && videoUrl && imageUrl && (
-                                <button
-                                    onClick={handlePlayButtonClick}
-                                    className="absolute bottom-3 left-3 sm:bottom-4 sm:left-4 z-20 p-2 sm:p-3 bg-accent/30 hover:bg-accent/50 text-accent-foreground backdrop-blur-sm rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
-                                    aria-label="Play video"
-                                >
-                                    <PlayIcon className="w-4 h-4 sm:w-5 sm:h-6" />
-                                </button>
-                            )}
-                            {!imageUrl && !videoUrl && (
-                                <div className="text-muted-foreground italic">Card Content Area</div>
-                            )}
-                        </div>
+                        {imageUrl && (
+                            <img
+                                src={imageUrl}
+                                alt="Preview"
+                                className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${
+                                    showVideo ? 'opacity-0 pointer-events-none' : 'opacity-100'
+                                }`}
+                            />
+                        )}
+                        {videoUrl && (
+                            <video
+                                ref={videoRef}
+                                src={videoUrl}
+                                muted
+                                playsInline
+                                className={`w-full h-full object-cover transition-opacity duration-300 ${
+                                    showVideo ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                                }`}
+                            />
+                        )}
+                        {!showVideo && videoUrl && imageUrl && (
+                            <button
+                                onClick={handlePlayButtonClick}
+                                className="absolute bottom-3 left-3 sm:bottom-4 sm:left-4 z-20 p-2 sm:p-3 bg-accent/30 hover:bg-accent/50 text-accent-foreground backdrop-blur-sm rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
+                                aria-label="Play video"
+                            >
+                                <PlayIcon className="w-4 h-4 sm:w-5 sm:h-6" />
+                            </button>
+                        )}
+                        {!imageUrl && !videoUrl && (
+                            <div className="text-muted-foreground italic">Card Content Area</div>
+                        )}
                     </div>
                 </div>
-            </main>
+            </div>
+            
             <div className="h-12 sm:h-16 md:h-24"></div>
             <canvas ref={canvasRef} className="fixed inset-0 pointer-events-none z-10"></canvas>
         </div>
     );
 };
-
-export {HeroSection}

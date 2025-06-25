@@ -1,30 +1,15 @@
-import React, { useState, useMemo } from 'react';
-import { diffWords, diffLines, diffChars } from 'diff';
-import { Copy, Check, Download, Share2, ChevronDown, X } from 'lucide-react';
+import React, { useState } from 'react';
+import { diffWords, diffChars } from 'diff';
+import { Copy, Check, Share2, X } from 'lucide-react';
 
 export default function TextDiffEditor() {
-  const [originalText, setOriginalText] = useState('hello 12 wordl yes test');
-  const [changedText, setChangedText] = useState('hello 12 world test');
+  const [originalText, setOriginalText] = useState('');
+  const [changedText, setChangedText] = useState('');
   const [diffMode, setDiffMode] = useState('split');
   const [highlightMode, setHighlightMode] = useState('word');
-  const [showTools, setShowTools] = useState(false);
   const [copiedOriginal, setCopiedOriginal] = useState(false);
   const [copiedChanged, setCopiedChanged] = useState(false);
   const [savedDiffs, setSavedDiffs] = useState<{ id: string; name: string; original: string; changed: string; date: Date; }[]>([]);
-
-  const differences = useMemo(() => {
-    if (!originalText && !changedText) return [];
-    if (highlightMode === 'word') {
-      return diffWords(originalText, changedText);
-    } else {
-      return diffChars(originalText, changedText);
-    }
-  }, [originalText, changedText, highlightMode]);
-
-  const lineDifferences = useMemo(() => {
-    if (!originalText && !changedText) return [];
-    return diffLines(originalText, changedText);
-  }, [originalText, changedText]);
 
   const copyToClipboard = async (text: string, type: string) => {
     await navigator.clipboard.writeText(text);
@@ -78,7 +63,7 @@ export default function TextDiffEditor() {
     const originalLines = originalText.split('\n');
     const changedLines = changedText.split('\n');
     
-    // Create unified diff that groups modifications together like diffchecker.com
+    // create unified diff that groups modifications together like diffchecker.com
     const unifiedLines: { type: string; line: string; lineNumber: number; comparedTo?: string; }[] = [];
     const maxLines = Math.max(originalLines.length, changedLines.length);
     
@@ -90,8 +75,8 @@ export default function TextDiffEditor() {
       const changedLine = changedLines[i] || '';
       
       if (originalLine === changedLine) {
-        // Lines are the same
-        if (originalLine || changedLine) { // Don't show empty lines at the end
+        // lines are the same
+        if (originalLine || changedLine) { // don't show empty lines at the end
           unifiedLines.push({
             type: 'unchanged',
             line: originalLine,
@@ -99,7 +84,7 @@ export default function TextDiffEditor() {
           });
         }
       } else {
-        // Lines are different - show as modification
+        // lines are different - show as modification
         if (originalLine) {
           unifiedLines.push({
             type: 'removed',
@@ -216,7 +201,7 @@ export default function TextDiffEditor() {
     const changedLines = changedText.split('\n');
     const maxLines = Math.max(originalLines.length, changedLines.length);
 
-    // Create a simple line-by-line comparison
+    // create a simple line-by-line comparison
     const alignedLines = [];
     
     for (let i = 0; i < maxLines; i++) {
@@ -256,7 +241,7 @@ export default function TextDiffEditor() {
                   <span className="flex-1">
                     {hasChange && line.original && line.changed ? 
                       renderInlineDiff(line.original, line.changed).filter((part, idx, arr) => 
-                        // Only show removed parts for original side
+                        // only show removed parts for original side
                         React.isValidElement(part) ? 
                           part.props.className?.includes('bg-red-200') || !part.props.className?.includes('bg-green-200')
                           : true
@@ -311,13 +296,8 @@ export default function TextDiffEditor() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="mx-auto p-4">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Text Diff Editor</h1>
-          <p className="text-gray-600">Compare and find differences between two text files</p>
-        </div>
-
+    <div className="min-h-screen">
+      <div className="mx-auto py-4 px-6">
         <div className="py-2 mb-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             <div>
@@ -395,13 +375,13 @@ export default function TextDiffEditor() {
               >
                 Save
               </button>
-              <button
+              {/* <button
                 onClick={handleShare}
                 className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 focus:ring-2 focus:ring-green-500"
               >
                 <Share2 className="w-4 h-4" />
                 Share
-              </button>
+              </button> */}
             </div>
           </div>
         </div>

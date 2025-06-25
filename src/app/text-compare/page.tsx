@@ -1,8 +1,12 @@
-// app/text-diff/page.tsx
 'use client';
 
-import TextDiffEditor from '@/components/text-compare-editor/TextDiffEditor';
+import TextDiffEditor from '@/components/text-compare-editor';
+import { BaseLayout } from '@/layout/base-layout';
 
-export default function DiffPage() {
-  return <TextDiffEditor />;
+export default function TextComparePage() {
+  return (
+    <BaseLayout>
+      <TextDiffEditor />
+    </BaseLayout>
+  );
 }
