@@ -20,11 +20,11 @@ export default function TextDiffEditor() {
   const [showTools, setShowTools] = useState(false);
   const [copiedOriginal, setCopiedOriginal] = useState(false);
   const [copiedChanged, setCopiedChanged] = useState(false);
-  const [savedDiffs, setSavedDiffs] = useState<Array<{id: string, name: string, original: string, changed: string, date: Date}>>([]);
+  const [savedDiffs, setSavedDiffs] = useState<Array<{ id: string, name: string, original: string, changed: string, date: Date }>>([]);
 
   const differences = useMemo(() => {
     if (!originalText && !changedText) return [];
-    
+
     if (highlightMode === 'word') {
       return diffWords(originalText, changedText);
     } else {
@@ -123,16 +123,16 @@ export default function TextDiffEditor() {
   const renderUnifiedDiff = () => {
     const renderLineWithHighlights = (line: string, lineType: 'added' | 'removed' | 'unchanged') => {
       if (lineType === 'unchanged') return <span>{line}</span>;
-      
-      const compareLine = lineType === 'added' 
+
+      const compareLine = lineType === 'added'
         ? originalText.split('\n').find(l => l.includes(line.substring(0, 10))) || ''
         : changedText.split('\n').find(l => l.includes(line.substring(0, 10))) || '';
-      
+
       if (!compareLine && lineType === 'added') return <span className="bg-green-200 text-green-900">{line}</span>;
       if (!compareLine && lineType === 'removed') return <span className="bg-red-200 text-red-900">{line}</span>;
-      
+
       const diffs = highlightMode === 'word' ? diffWords(line, compareLine) : diffChars(line, compareLine);
-      
+
       return (
         <span>
           {diffs.map((part, idx) => {
@@ -168,7 +168,7 @@ export default function TextDiffEditor() {
               </span>
             </div>
           </div>
-          <button 
+          <button
             onClick={() => {
               const diffText = lineDifferences.map(part => {
                 const prefix = part.added ? '+ ' : part.removed ? '- ' : '  ';
@@ -187,9 +187,8 @@ export default function TextDiffEditor() {
             return lines.map((line, lineIndex) => (
               <div
                 key={`${index}-${lineIndex}`}
-                className={`flex ${
-                  part.added ? 'bg-green-50' : part.removed ? 'bg-red-50' : ''
-                }`}
+                className={`flex ${part.added ? 'bg-green-50' : part.removed ? 'bg-red-50' : ''
+                  }`}
               >
                 <span className="w-12 text-right pr-4 text-gray-400 select-none">
                   {lineIndex + 1}
@@ -211,19 +210,19 @@ export default function TextDiffEditor() {
   const renderSplitDiff = () => {
     const originalLines = originalText.split('\n');
     const changedLines = changedText.split('\n');
-    
+
     // Create a line-by-line diff to properly align lines
     const lineByLineDiff = diffLines(originalText, changedText);
-    
+
     // Build aligned lines array
-    const alignedLines: Array<{original: string | null, changed: string | null, type: 'same' | 'modified' | 'added' | 'removed'}> = [];
-    
+    const alignedLines: Array<{ original: string | null, changed: string | null, type: 'same' | 'modified' | 'added' | 'removed' }> = [];
+
     let origIdx = 0;
     let changedIdx = 0;
-    
+
     lineByLineDiff.forEach(part => {
       const lines = part.value.split('\n').filter(l => l !== '');
-      
+
       if (!part.added && !part.removed) {
         // Same lines
         lines.forEach(line => {
@@ -253,14 +252,14 @@ export default function TextDiffEditor() {
         });
       }
     });
-    
+
     // Check for modified lines (lines that exist in both but are different)
     const finalAlignedLines: typeof alignedLines = [];
     let i = 0;
-    
+
     while (i < alignedLines.length) {
       const current = alignedLines[i];
-      
+
       if (current.type === 'removed' && i + 1 < alignedLines.length && alignedLines[i + 1].type === 'added') {
         // This is likely a modified line
         finalAlignedLines.push({
@@ -274,7 +273,7 @@ export default function TextDiffEditor() {
         i++;
       }
     }
-    
+
     const renderLineContent = (line: string | null, otherLine: string | null, side: 'original' | 'changed') => {
       if (!line) return <span className="text-gray-300">{'<empty line>'}</span>;
       if (!otherLine) {
@@ -285,10 +284,10 @@ export default function TextDiffEditor() {
           return <span className="bg-green-100 text-green-900">{line}</span>;
         }
       }
-      
+
       // Compare the two lines
       const diffs = highlightMode === 'word' ? diffWords(line, otherLine) : diffChars(line, otherLine);
-      
+
       return (
         <span>
           {diffs.map((part, idx) => {
@@ -317,7 +316,7 @@ export default function TextDiffEditor() {
         <div className="flex-1 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
           <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-b">
             <span className="text-sm font-medium text-gray-700">Original text</span>
-            <button 
+            <button
               onClick={() => copyToClipboard(originalText, 'original')}
               className="text-gray-500 hover:text-gray-700"
             >
@@ -331,7 +330,7 @@ export default function TextDiffEditor() {
                   {line.original !== null ? index + 1 : ''}
                 </span>
                 <span className="flex-1">
-                  {line.type === 'modified' 
+                  {line.type === 'modified'
                     ? renderLineContent(line.original, line.changed, 'original')
                     : line.original || <span className="text-gray-300">&nbsp;</span>
                   }
@@ -343,7 +342,7 @@ export default function TextDiffEditor() {
         <div className="flex-1 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
           <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-b">
             <span className="text-sm font-medium text-gray-700">Changed text</span>
-            <button 
+            <button
               onClick={() => copyToClipboard(changedText, 'changed')}
               className="text-gray-500 hover:text-gray-700"
             >
@@ -357,7 +356,7 @@ export default function TextDiffEditor() {
                   {line.changed !== null ? index + 1 : ''}
                 </span>
                 <span className="flex-1">
-                  {line.type === 'modified' 
+                  {line.type === 'modified'
                     ? renderLineContent(line.changed, line.original, 'changed')
                     : line.changed || <span className="text-gray-300">&nbsp;</span>
                   }
@@ -378,7 +377,7 @@ export default function TextDiffEditor() {
           <p className="text-gray-600">Compare and find differences between two text files</p>
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+        <div className="py-2 mb-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             <div>
               <div className="flex items-center justify-between mb-2">
@@ -394,9 +393,10 @@ export default function TextDiffEditor() {
               <textarea
                 value={originalText}
                 onChange={(e) => setOriginalText(e.target.value)}
-                className="w-full h-64 p-3 border border-gray-300 rounded-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none font-mono text-sm"
+                className="w-full h-72 p-2 border-3 border-gray-300 rounded-sm  focus:border-green-500 resize-none font-mono text-sm"
               />
             </div>
+
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="text-sm font-bold text-gray-700">Changed Text</label>
@@ -411,7 +411,7 @@ export default function TextDiffEditor() {
               <textarea
                 value={changedText}
                 onChange={(e) => setChangedText(e.target.value)}
-                className="w-full h-64 p-3 border border-gray-300 rounded-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none font-mono text-sm"
+                className="w-full h-72 p-2 border-3 border-gray-300 rounded-sm focus:border-green-500 resize-none font-mono text-sm"
               />
             </div>
           </div>

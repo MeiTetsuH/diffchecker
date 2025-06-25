@@ -15,7 +15,6 @@ const parseRgbColor = (colorString: string) => {
     return null;
 };
 
-// A simple SVG Play Icon
 const PlayIcon = ({ className = "w-6 h-6" }) => (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
         <path d="M8 5V19L19 12L8 5Z" />
@@ -24,7 +23,7 @@ const PlayIcon = ({ className = "w-6 h-6" }) => (
 
 const defaultNavItems = [
     { id: 'home', label: 'Home', onClick: () => console.info('Default Home clicked') },
-    { id: 'text', label: 'Text', href: '#text-section' },
+    { id: 'text', label: 'Text', href: '/text-compare' },
     { id: 'excel', label: 'Excel', href: '#excel-section' },
     { id: 'login', label: 'Login', href: '#login-section' },
 ];
@@ -262,7 +261,7 @@ const HeroSection = ({
 
                 <div className="mt-8 flex justify-center">
                     <button
-                        ref={targetRef}
+                        onClick={() => window.location.href = '/text-compare'}
                         className="py-2 px-4 rounded-xl border border-foreground/50 hover:border-foreground/80 text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
                     >
                         {buttonText}
