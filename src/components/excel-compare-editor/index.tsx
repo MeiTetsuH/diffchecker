@@ -204,7 +204,9 @@ export default function ExcelCompareEditor() {
             const rSheet = right.data.Sheets[rightSheet];
             const lRows: any[][] = XLSX.utils.sheet_to_json(lSheet, { header: 1, blankrows:false }) as any[][];
             const rRows: any[][] = XLSX.utils.sheet_to_json(rSheet, { header: 1, blankrows:false }) as any[][];
-            const headers = lRows[leftHeaderLine-1] || rRows[rightHeaderLine-1] || [];
+            const headersLeft = lRows[leftHeaderLine-1] || [];
+            const headersRight = rRows[rightHeaderLine-1] || [];
+            const combinedHeaders: string[] = Array.from(new Set([...headersLeft, ...headersRight]));
             const lBody = lRows.slice(leftHeaderLine);
             const rBody = rRows.slice(rightHeaderLine);
             const max = Math.max(lBody.length, rBody.length);
@@ -222,7 +224,7 @@ export default function ExcelCompareEditor() {
                 diffArr.push({type:'modified', lRow, rRow});
               }
             }
-            setTableDiff([{headers}, ...diffArr]);
+            setTableDiff([{headers: combinedHeaders, headersLeft, headersRight}, ...diffArr]);
             // text diff csv
             const lCsv = XLSX.utils.sheet_to_csv(lSheet);
             const rCsv = XLSX.utils.sheet_to_csv(rSheet);
@@ -257,18 +259,23 @@ export default function ExcelCompareEditor() {
               <button className={`${activeTab==='text' ? 'font-semibold text-green-600 border-b-2 border-green-600' : ''}`} onClick={()=>setActiveTab('text')}>Text</button>
             </div>
             {activeTab==='table' ? (
-              <div className="overflow-x-auto text-xs">
+              <div className="overflow-x-auto text-xs mr-2">
                 <table className="min-w-full border-collapse text-left">
                   <thead>
-                    <tr>
-                      {(tableDiff[0]?.headers || []).map((h:any, idx:number)=>(
-                        <th key={idx} className="border px-2 py-1 bg-gray-50 whitespace-nowrap">{h}</th>
-                      ))}
+                    <tr className="bg-gray-50">
+                      <th className="border px-2 py-1 whitespace-nowrap text-right select-none text-gray-400">#</th>
+                      {(tableDiff[0]?.headers || []).map((h:any, idx:number)=>{
+                        const onlyLeft = (tableDiff[0]?.headersLeft || []).includes(h) && !(tableDiff[0]?.headersRight || []).includes(h);
+                        const onlyRight = (tableDiff[0]?.headersRight || []).includes(h) && !(tableDiff[0]?.headersLeft || []).includes(h);
+                        const base = onlyLeft? 'bg-green-50 text-green-700' : onlyRight? 'bg-red-50 text-red-700' : 'bg-gray-50';
+                        return <th key={idx} className={`border px-2 py-1 whitespace-nowrap ${base}`}>{h}</th>;
+                      })}
                     </tr>
                   </thead>
                   <tbody>
                     {tableDiff.slice(1).map((row:any, idx:number)=> (
                       <tr key={idx} className={row.type==='added' ? 'bg-green-50' : row.type==='removed' ? 'bg-red-50' : ''}>
+                        <td className="border px-2 py-1 text-right select-none text-gray-400 bg-gray-50">{idx+1}</td>
                         {(tableDiff[0]?.headers||[]).map((_:any,cIdx:number)=>{
                           const lVal = row.lRow?row.lRow[cIdx]:'';
                           const rVal = row.rRow?row.rRow[cIdx]:'';
