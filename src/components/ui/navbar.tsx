@@ -35,9 +35,9 @@ export const Navbar = ({ items = defaultNavItems, className = '' }: NavbarProps)
             href={item.href}
             target={item.target}
             rel={item.target === '_blank' ? 'noopener noreferrer' : undefined}
-            className={`py-2 px-3 sm:px-4 rounded-md transition-colors duration-150 ease-in-out whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-ring ${
+            className={` font-bold py-2 px-3 sm:px-4 rounded-md transition-colors duration-150 ease-in-out whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-ring ${
               isActive 
-                ? 'text-foreground bg-accent/20 border border-accent/30' 
+                ? 'text-foreground bg-green-500/20 border border-accent/30' 
                 : 'text-muted-foreground hover:text-foreground hover:bg-accent/10 dark:hover:bg-accent/20'
             }`}
           >

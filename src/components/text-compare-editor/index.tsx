@@ -373,7 +373,7 @@ export default function TextDiffEditor() {
               >
                 Clear
               </button>
-              <button
+              {/* <button
                 onClick={handleSave}
                 className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 focus:ring-2 focus:ring-green-500"
               >
@@ -385,7 +385,7 @@ export default function TextDiffEditor() {
               >
                 <Share2 className="w-4 h-4" />
                 Share
-              </button>
+              </button> */}
             </div>
           </div>
         </div>
