@@ -32,7 +32,7 @@ const SpreadsheetPreview: React.FC<PreviewProps> = ({ loaded, sheetName, setShee
 
   return (
     <div className="w-full" onClick={(e) => e.stopPropagation()}>
-      <div className="border rounded overflow-hidden">
+      <div className="border rounded-lg overflow-hidden">
         <div className="overflow-y-auto max-h-64">
         <table className="min-w-full border-collapse text-xs text-left">
           <thead className="bg-gray-50">
@@ -307,7 +307,7 @@ export default function ExcelCompareEditor() {
             ) : (
               <div className="flex gap-4 text-xs">
                   {/* Original CSV */}
-                  <div className="flex-1 bg-white rounded border border-gray-200 overflow-hidden">
+                  <div className="flex-1 bg-white border  rounded-lg border-gray-200 overflow-hidden">
                     <div className="flex items-center justify-between px-3 py-1 bg-red-50 border-b">
                       <span className="flex items-center gap-1 text-sm font-medium text-red-900">
                         <span className="w-3 h-3 bg-red-400 rounded-full inline-block" />
@@ -328,7 +328,7 @@ export default function ExcelCompareEditor() {
                     </div>
                   </div>
                   {/* Changed CSV */}
-                  <div className="flex-1 bg-white rounded border border-gray-200 overflow-hidden">
+                  <div className="flex-1 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
                     <div className="flex items-center justify-between px-3 py-1 bg-green-50 border-b">
                       <span className="flex items-center gap-1 text-sm font-medium text-green-900">
                         <span className="w-3 h-3 bg-green-400 rounded-full inline-block" />
