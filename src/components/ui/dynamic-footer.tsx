@@ -27,7 +27,7 @@ function DynamicFooter() {
         ]}
         mainLinks={[
           { href: "/text-compare", label: "Text Compare" },
-          { href: "/spreadsheet-compare", label: "Spreadsheet Compare" },
+          { href: "/excel-compare", label: "Spreadsheet Compare" },
           { href: "/json-compare", label: "JSON Compare" },
         ]}
         legalLinks={[
