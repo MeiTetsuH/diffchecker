@@ -255,12 +255,12 @@ export default function ExcelCompareEditor() {
           {/* Main diff area */}
           <section className="flex-1 overflow-auto">
             <div className="flex gap-4 border-b mb-4 text-sm">
-              <button className={`${activeTab==='table' ? 'font-semibold text-green-600 border-b-2 border-green-600' : ''}`} onClick={()=>setActiveTab('table')}>Table</button>
-              <button className={`${activeTab==='text' ? 'font-semibold text-green-600 border-b-2 border-green-600' : ''}`} onClick={()=>setActiveTab('text')}>Text</button>
+              <button className={`${activeTab==='table' ? 'font-semibold text-green-600 border-b-2 border-green-600' : ' font-semibold border-transparent border-b-2'}`} onClick={()=>setActiveTab('table')}>Table</button>
+              <button className={`${activeTab==='text' ? 'font-semibold text-green-600 border-b-2 border-green-600' : ' font-semibold border-transparent border-b-2'}`} onClick={()=>setActiveTab('text')}>Text</button>
             </div>
             {activeTab==='table' ? (
               <div className="overflow-x-auto text-xs mr-2">
-                <table className="min-w-full border-collapse text-left">
+                <table className="table-auto w-fit border-collapse text-left">
                   <thead>
                     <tr className="bg-gray-50">
                       <th className="border px-2 py-1 whitespace-nowrap text-right select-none text-gray-400">#</th>
