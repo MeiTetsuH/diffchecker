@@ -85,6 +85,10 @@ export default function ExcelCompareEditor() {
   const [activeTab, setActiveTab] = useState<'table'|'text'>('table');
   const [tableDiff, setTableDiff] = useState<any[]>([]);
   const [textDiffLines, setTextDiffLines] = useState<any[]>([]);
+  const [csvLeft, setCsvLeft] = useState<string[]>([]); 
+  const [csvRight, setCsvRight] = useState<string[]>([]);
+  const removedCount = useMemo(()=> csvLeft.filter((line,i)=> line!== (csvRight[i]||'')).length, [csvLeft,csvRight]);
+  const addedCount = useMemo(()=> csvRight.filter((line,i)=> line!== (csvLeft[i]||'')).length, [csvLeft,csvRight]);
 
   const [left, setLeft] = useState<LoadedFile | null>(null);
   const [right, setRight] = useState<LoadedFile | null>(null);
@@ -230,6 +234,8 @@ export default function ExcelCompareEditor() {
             const rCsv = XLSX.utils.sheet_to_csv(rSheet);
             const diffLinesArr = diffLines(lCsv, rCsv);
             setTextDiffLines(diffLinesArr);
+            setCsvLeft(lCsv.split('\n'));
+            setCsvRight(rCsv.split('\n'));
             setActiveTab('table');
             setShowDiff(true);
           }}
@@ -241,9 +247,9 @@ export default function ExcelCompareEditor() {
           </div>
 
       {showDiff && (
-        <div className="mt-8 flex flex-col md:flex-row gap-6" id="diff-viewer">
+        <div className="mt-8 flex flex-col md:flex-row gap-6 px-6" id="diff-viewer">
           {/* Sidebar */}
-          <aside className="md:w-56 border-r md:pr-4 text-xs mb-4 md:mb-0">
+          {/* <aside className="md:w-56 border-r md:pr-4 text-xs mb-4 md:mb-0">
             <h3 className="font-semibold text-sm mb-4">Comparison Options</h3>
             <ul className="space-y-2">
               <li><label className="flex items-center"><input type="checkbox" disabled className="mr-2"/>Ignore white space</label></li>
@@ -251,7 +257,7 @@ export default function ExcelCompareEditor() {
               <li><label className="flex items-center"><input type="checkbox" disabled className="mr-2"/>Hide unchanged rows</label></li>
               <li><label className="flex items-center"><input type="checkbox" disabled className="mr-2"/>Hide unchanged columns</label></li>
             </ul>
-          </aside>
+          </aside> */}
           {/* Main diff area */}
           <section className="flex-1 overflow-auto">
             <div className="flex gap-4 border-b mb-4 text-sm">
@@ -299,12 +305,50 @@ export default function ExcelCompareEditor() {
                 </table>
               </div>
             ) : (
-              <pre className="font-mono whitespace-pre-wrap text-xs">
-                {textDiffLines.map((part:any, idx:number)=>{
-                  const cls = part.added? 'bg-green-200 text-green-900' : part.removed? 'bg-red-200 text-red-900' : '';
-                  return <span key={idx} className={cls}>{part.value}</span>;
-                })}
-              </pre>
+              <div className="flex gap-4 text-xs">
+                  {/* Original CSV */}
+                  <div className="flex-1 bg-white rounded border border-gray-200 overflow-hidden">
+                    <div className="flex items-center justify-between px-3 py-1 bg-red-50 border-b">
+                      <span className="flex items-center gap-1 text-sm font-medium text-red-900">
+                        <span className="w-3 h-3 bg-red-400 rounded-full inline-block" />
+                        {removedCount} removal{removedCount!==1?'s':''}
+                      </span>
+                      <span className="text-xs text-gray-600">{csvLeft.length} lines</span>
+                    </div>
+                    <div className="p-3 font-mono overflow-auto max-h-[600px]">
+                      {csvLeft.map((line, i) => {
+                        const changed = line !== (csvRight[i] || '');
+                        return (
+                          <div key={i} className={`flex py-0.5 ${changed ? 'bg-red-50' : ''}`}>
+                            <span className="w-10 text-right pr-3 text-gray-400 select-none">{line ? i+1 : ''}</span>
+                            <span className="flex-1">{changed ? <span className="bg-red-200 text-red-900 px-0.5 rounded">{line}</span> : line}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  {/* Changed CSV */}
+                  <div className="flex-1 bg-white rounded border border-gray-200 overflow-hidden">
+                    <div className="flex items-center justify-between px-3 py-1 bg-green-50 border-b">
+                      <span className="flex items-center gap-1 text-sm font-medium text-green-900">
+                        <span className="w-3 h-3 bg-green-400 rounded-full inline-block" />
+                        {addedCount} addition{addedCount!==1?'s':''}
+                      </span>
+                      <span className="text-xs text-gray-600">{csvRight.length} lines</span>
+                    </div>
+                    <div className="p-3 font-mono overflow-auto max-h-[600px]">
+                      {csvRight.map((line, i) => {
+                        const changed = line !== (csvLeft[i] || '');
+                        return (
+                          <div key={i} className={`flex py-0.5 ${changed ? 'bg-green-50' : ''}`}>
+                            <span className="w-10 text-right pr-3 text-gray-400 select-none">{line ? i+1 : ''}</span>
+                            <span className="flex-1">{changed ? <span className="bg-green-200 text-green-900 px-0.5 rounded">{line}</span> : line}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
             )}
           </section>
         </div>
