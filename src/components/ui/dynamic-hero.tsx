@@ -241,7 +241,7 @@ export const HeroSection = ({
                 <button
                     ref={targetRef}
                     onClick={handleButtonClick}
-                    className="py-2 px-4 rounded-xl border border-foreground/50 hover:border-foreground/80 text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
+                    className="cursor-pointer hover:bg-green-500/20 py-2 px-4 rounded-xl border border-foreground/50 hover:border-foreground/80 text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
                 >
                     {buttonText}
                 </button>
@@ -276,7 +276,7 @@ export const HeroSection = ({
                         {!showVideo && videoUrl && imageUrl && (
                             <button
                                 onClick={handlePlayButtonClick}
-                                className="absolute bottom-3 left-3 sm:bottom-4 sm:left-4 z-20 p-2 sm:p-3 bg-accent/30 hover:bg-accent/50 text-accent-foreground backdrop-blur-sm rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
+                                className="cursor-pointer absolute bottom-3 left-3 sm:bottom-4 sm:left-4 z-20 p-2 sm:p-3 bg-accent/30 hover:bg-accent/50 text-accent-foreground backdrop-blur-sm rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
                                 aria-label="Play video"
                             >
                                 <PlayIcon className="w-4 h-4 sm:w-5 sm:h-6" />

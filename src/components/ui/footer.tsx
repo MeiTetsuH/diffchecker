@@ -1,4 +1,6 @@
 import { Button } from "@/components/ui/button"
+import Link from "next/link"
+import Image from "next/image"
 
 interface FooterProps {
   logo: React.ReactNode
@@ -31,17 +33,12 @@ export function Footer({
   copyright,
 }: FooterProps) {
   return (
-    <footer className="pb-6 pt-16 lg:pb-8 lg:pt-24">
+    <footer className="mt-24 pb-6 pt-16 lg:pb-8 lg:pt-24">
       <div className="px-4 lg:px-8">
         <div className="md:flex md:items-start md:justify-between">
-          <a
-            href="/"
-            className="flex items-center gap-x-2"
-            aria-label={brandName}
-          >
-            {logo}
-            <span className="font-bold text-xl">{brandName}</span>
-          </a>
+        <Link href="/" className="shrink-0" aria-label="Home">
+          <Image src="/logo.svg" alt="Diffchecker logo" width={125} height={125} priority />
+        </Link> 
           <ul className="flex list-none mt-6 md:mt-0 space-x-3">
             {socialLinks.map((link, i) => (
               <li key={i}>
