@@ -1,4 +1,5 @@
-import React, { useRef, useState, useMemo } from 'react';
+import React, { useRef, useState, useMemo, useEffect } from 'react';
+import { saveDiff, loadDiff, getAllDiffs } from '@/diff-store';
 import { X } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { diffLines } from 'diff';
@@ -87,6 +88,12 @@ export default function ExcelCompareEditor() {
   const [textDiffLines, setTextDiffLines] = useState<any[]>([]);
   const [csvLeft, setCsvLeft] = useState<string[]>([]); 
   const [csvRight, setCsvRight] = useState<string[]>([]);
+// saved diffs sidebar
+const [savedDiffs, setSavedDiffs] = useState<any[]>([]);
+
+useEffect(() => {
+  getAllDiffs().then(setSavedDiffs);
+}, []);
   const removedCount = useMemo(()=> csvLeft.filter((line,i)=> line!== (csvRight[i]||'')).length, [csvLeft,csvRight]);
   const addedCount = useMemo(()=> csvRight.filter((line,i)=> line!== (csvLeft[i]||'')).length, [csvLeft,csvRight]);
 
@@ -238,6 +245,19 @@ export default function ExcelCompareEditor() {
             setCsvRight(rCsv.split('\n'));
             setActiveTab('table');
             setShowDiff(true);
+
+// persist this diff for guests
+saveDiff({
+  name: `${left.file.name} vs ${right.file.name}`,
+  leftFileName: left.file.name,
+  rightFileName: right.file.name,
+  diffData: {
+    tableDiff: [{headers: combinedHeaders, headersLeft, headersRight}, ...diffArr],
+    textDiffLines: diffLinesArr,
+    csvLeft: lCsv.split('\n'),
+    csvRight: rCsv.split('\n'),
+  },
+});
           }}
           className="px-6 py-2 rounded-md text-sm font-medium text-white bg-green-600 disabled:bg-gray-200 disabled:text-gray-400 cursor-pointer"
         >
@@ -249,15 +269,32 @@ export default function ExcelCompareEditor() {
       {showDiff && (
         <div className="mt-8 flex flex-col md:flex-row gap-6 px-6" id="diff-viewer">
           {/* Sidebar */}
-          {/* <aside className="md:w-56 border-r md:pr-4 text-xs mb-4 md:mb-0">
-            <h3 className="font-semibold text-sm mb-4">Comparison Options</h3>
-            <ul className="space-y-2">
-              <li><label className="flex items-center"><input type="checkbox" disabled className="mr-2"/>Ignore white space</label></li>
-              <li><label className="flex items-center"><input type="checkbox" disabled className="mr-2"/>Ignore case changes</label></li>
-              <li><label className="flex items-center"><input type="checkbox" disabled className="mr-2"/>Hide unchanged rows</label></li>
-              <li><label className="flex items-center"><input type="checkbox" disabled className="mr-2"/>Hide unchanged columns</label></li>
+          <aside className="md:w-56 border-r md:pr-4 text-xs mb-4 md:mb-0">
+            <h3 className="font-semibold text-sm mb-4">Saved Diffs</h3>
+            <ul className="space-y-2 max-h-72 overflow-auto">
+              {savedDiffs.map((d) => (
+                <li key={d.id}>
+                  <button
+                    className="w-full text-left hover:underline"
+                    onClick={async () => {
+                      const rec = await loadDiff(d.id);
+                      if (!rec) return;
+                      const data = rec.diffData || {};
+                      setTableDiff(data.tableDiff || []);
+                      setTextDiffLines(data.textDiffLines || []);
+                      setCsvLeft(data.csvLeft || []);
+                      setCsvRight(data.csvRight || []);
+                      setActiveTab('table');
+                      setShowDiff(true);
+                    }}
+                  >
+                    <span className="block truncate text-gray-800">{d.name}</span>
+                    <span className="block text-gray-500 text-xxs">{new Date(d.createdAt).toLocaleString()}</span>
+                  </button>
+                </li>
+              ))}
             </ul>
-          </aside> */}
+          </aside>
           {/* Main diff area */}
           <section className="flex-1 overflow-auto">
             <div className="flex gap-4 border-b mb-4 text-sm">

@@ -14,6 +14,9 @@ importers:
       '@radix-ui/react-slot':
         specifier: ^1.2.3
         version: 1.2.3(@types/react@19.1.8)(react@19.1.0)
+      async-idb-orm:
+        specifier: ^7.0.0
+        version: 7.0.0
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -1495,6 +1498,9 @@ packages:
 
   as-table@1.0.55:
     resolution: {integrity: sha512-xvsWESUJn0JN421Xb9MQw6AsMHRCUknCe0Wjlxvjud80mU4E6hQf1A6NzQKcYNmYw62MfzEtXc+badstZP3JpQ==}
+
+  async-idb-orm@7.0.0:
+    resolution: {integrity: sha512-NKtjW1d8hbB2onbdDSVIHC2kdUQgLa+4rx233bzntGx1LEsHKA627FSYeeg88rAUEwYKwikRUUzXi0MGb+JfJg==}
 
   aws4fetch@1.0.20:
     resolution: {integrity: sha512-/djoAN709iY65ETD6LKCtyyEI04XIBP5xVvfmNxsEP0uJB5tyaGBztSryRr4HqMStr9R06PisQE7m9zDTXKu6g==}
@@ -4566,6 +4572,8 @@ snapshots:
   as-table@1.0.55:
     dependencies:
       printable-characters: 1.0.42
+
+  async-idb-orm@7.0.0: {}
 
   aws4fetch@1.0.20: {}
 
