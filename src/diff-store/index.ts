@@ -9,7 +9,7 @@ const DB_VERSION = 1;
 const MAX_DIFFS = 100; // automatic cleanup cap
 
 
-// Collection for saved diffs
+// collection for saved diffs
 const diffs = Collection.create<SavedDiff, SavedDiffDTO>()
   .withIndexes([
     { key: 'createdAt', name: 'idx_createdAt' },

@@ -1,5 +1,5 @@
 import React, { useRef, useState, useMemo, useEffect } from 'react';
-import { saveDiff, loadDiff, getAllDiffs } from '@/diff-store';
+import { saveDiff, loadDiff, getAllDiffs, deleteDiff } from '@/diff-store';
 import { X } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { diffLines } from 'diff';
@@ -35,24 +35,24 @@ const SpreadsheetPreview: React.FC<PreviewProps> = ({ loaded, sheetName, setShee
     <div className="w-full" onClick={(e) => e.stopPropagation()}>
       <div className="border rounded-lg overflow-hidden">
         <div className="overflow-y-auto max-h-64">
-        <table className="min-w-full border-collapse text-xs text-left">
-          <thead className="bg-gray-50">
-            <tr>
-              {headers.map((h, idx) => (
-                <th key={idx} className="border px-2 py-1 font-medium text-gray-700 whitespace-nowrap">{h || `Column ${idx + 1}`}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {body.map((row, rIdx) => (
-              <tr key={rIdx} className="even:bg-gray-50">
-                {headers.map((_, cIdx) => (
-                  <td key={cIdx} className="border px-2 py-1 whitespace-nowrap text-gray-600">{row[cIdx]}</td>
+          <table className="min-w-full border-collapse text-xs text-left">
+            <thead className="bg-gray-50">
+              <tr>
+                {headers.map((h, idx) => (
+                  <th key={idx} className="border px-2 py-1 font-medium text-gray-700 whitespace-nowrap">{h || `Column ${idx + 1}`}</th>
                 ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {body.map((row, rIdx) => (
+                <tr key={rIdx} className="even:bg-gray-50">
+                  {headers.map((_, cIdx) => (
+                    <td key={cIdx} className="border px-2 py-1 whitespace-nowrap text-gray-600">{row[cIdx]}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
       <div className="flex items-center gap-3 text-xs mt-2">
@@ -83,19 +83,19 @@ const SpreadsheetPreview: React.FC<PreviewProps> = ({ loaded, sheetName, setShee
 
 export default function ExcelCompareEditor() {
   const [showDiff, setShowDiff] = useState(false);
-  const [activeTab, setActiveTab] = useState<'table'|'text'>('table');
+  const [activeTab, setActiveTab] = useState<'table' | 'text'>('table');
   const [tableDiff, setTableDiff] = useState<any[]>([]);
   const [textDiffLines, setTextDiffLines] = useState<any[]>([]);
-  const [csvLeft, setCsvLeft] = useState<string[]>([]); 
+  const [csvLeft, setCsvLeft] = useState<string[]>([]);
   const [csvRight, setCsvRight] = useState<string[]>([]);
-// saved diffs sidebar
-const [savedDiffs, setSavedDiffs] = useState<any[]>([]);
+  // saved diffs sidebar
+  const [savedDiffs, setSavedDiffs] = useState<any[]>([]);
 
-useEffect(() => {
-  getAllDiffs().then(setSavedDiffs);
-}, []);
-  const removedCount = useMemo(()=> csvLeft.filter((line,i)=> line!== (csvRight[i]||'')).length, [csvLeft,csvRight]);
-  const addedCount = useMemo(()=> csvRight.filter((line,i)=> line!== (csvLeft[i]||'')).length, [csvLeft,csvRight]);
+  useEffect(() => {
+    getAllDiffs().then(setSavedDiffs);
+  }, []);
+  const removedCount = useMemo(() => csvLeft.filter((line, i) => line !== (csvRight[i] || '')).length, [csvLeft, csvRight]);
+  const addedCount = useMemo(() => csvRight.filter((line, i) => line !== (csvLeft[i] || '')).length, [csvLeft, csvRight]);
 
   const [left, setLeft] = useState<LoadedFile | null>(null);
   const [right, setRight] = useState<LoadedFile | null>(null);
@@ -159,7 +159,7 @@ useEffect(() => {
             >
               <X className="w-5 h-5" />
             </button>
-            <div className="w-full" onClick={(e)=>e.stopPropagation()}>
+            <div className="w-full" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-2">
                 <p className="font-medium text-gray-800 break-all text-sm">{loaded.file.name}</p>
                 <span className="text-xs text-gray-500">{(loaded.file.size / 1024).toFixed(1)} KB</span>
@@ -199,84 +199,85 @@ useEffect(() => {
 
   return (
     <div className="w-full ">
-          <div className="mx-auto py-4 px-6">
+      <div className="mx-auto py-4 px-6">
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        {renderDropZone(left, 'left')}
-        {renderDropZone(right, 'right')}
-      </div>
-      <div className="flex justify-center">
-        <button
-          disabled={!left || !right}
-          onClick={() => {
-            if (!left || !right) return;
-            // build arrays starting from headerLine
-            const lSheet = left.data.Sheets[leftSheet];
-            const rSheet = right.data.Sheets[rightSheet];
-            const lRows: any[][] = XLSX.utils.sheet_to_json(lSheet, { header: 1, blankrows:false }) as any[][];
-            const rRows: any[][] = XLSX.utils.sheet_to_json(rSheet, { header: 1, blankrows:false }) as any[][];
-            const headersLeft = lRows[leftHeaderLine-1] || [];
-            const headersRight = rRows[rightHeaderLine-1] || [];
-            const combinedHeaders: string[] = Array.from(new Set([...headersLeft, ...headersRight]));
-            const lBody = lRows.slice(leftHeaderLine);
-            const rBody = rRows.slice(rightHeaderLine);
-            const max = Math.max(lBody.length, rBody.length);
-            const diffArr:any[] = [];
-            for(let i=0;i<max;i++){
-              const lRow = lBody[i] || [];
-              const rRow = rBody[i] || [];
-              if(JSON.stringify(lRow) === JSON.stringify(rRow)){
-                diffArr.push({type:'same', lRow, rRow});
-              } else if (lRow.length===0){
-                diffArr.push({type:'added', rRow});
-              } else if (rRow.length===0){
-                diffArr.push({type:'removed', lRow});
-              } else {
-                diffArr.push({type:'modified', lRow, rRow});
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          {renderDropZone(left, 'left')}
+          {renderDropZone(right, 'right')}
+        </div>
+        <div className="flex justify-center">
+          <button
+            disabled={!left || !right}
+            onClick={() => {
+              if (!left || !right) return;
+              // build arrays starting from headerLine
+              const lSheet = left.data.Sheets[leftSheet];
+              const rSheet = right.data.Sheets[rightSheet];
+              const lRows: any[][] = XLSX.utils.sheet_to_json(lSheet, { header: 1, blankrows: false }) as any[][];
+              const rRows: any[][] = XLSX.utils.sheet_to_json(rSheet, { header: 1, blankrows: false }) as any[][];
+              const headersLeft = lRows[leftHeaderLine - 1] || [];
+              const headersRight = rRows[rightHeaderLine - 1] || [];
+              const combinedHeaders: string[] = Array.from(new Set([...headersLeft, ...headersRight]));
+              const lBody = lRows.slice(leftHeaderLine);
+              const rBody = rRows.slice(rightHeaderLine);
+              const max = Math.max(lBody.length, rBody.length);
+              const diffArr: any[] = [];
+              for (let i = 0; i < max; i++) {
+                const lRow = lBody[i] || [];
+                const rRow = rBody[i] || [];
+                if (JSON.stringify(lRow) === JSON.stringify(rRow)) {
+                  diffArr.push({ type: 'same', lRow, rRow });
+                } else if (lRow.length === 0) {
+                  diffArr.push({ type: 'added', rRow });
+                } else if (rRow.length === 0) {
+                  diffArr.push({ type: 'removed', lRow });
+                } else {
+                  diffArr.push({ type: 'modified', lRow, rRow });
+                }
               }
-            }
-            setTableDiff([{headers: combinedHeaders, headersLeft, headersRight}, ...diffArr]);
-            // text diff csv
-            const lCsv = XLSX.utils.sheet_to_csv(lSheet);
-            const rCsv = XLSX.utils.sheet_to_csv(rSheet);
-            const diffLinesArr = diffLines(lCsv, rCsv);
-            setTextDiffLines(diffLinesArr);
-            setCsvLeft(lCsv.split('\n'));
-            setCsvRight(rCsv.split('\n'));
-            setActiveTab('table');
-            setShowDiff(true);
+              setTableDiff([{ headers: combinedHeaders, headersLeft, headersRight }, ...diffArr]);
+              // text diff csv
+              const lCsv = XLSX.utils.sheet_to_csv(lSheet);
+              const rCsv = XLSX.utils.sheet_to_csv(rSheet);
+              const diffLinesArr = diffLines(lCsv, rCsv);
+              setTextDiffLines(diffLinesArr);
+              setCsvLeft(lCsv.split('\n'));
+              setCsvRight(rCsv.split('\n'));
+              setActiveTab('table');
+              setShowDiff(true);
 
-// persist this diff for guests
-saveDiff({
-  name: `${left.file.name} vs ${right.file.name}`,
-  leftFileName: left.file.name,
-  rightFileName: right.file.name,
-  diffData: {
-    tableDiff: [{headers: combinedHeaders, headersLeft, headersRight}, ...diffArr],
-    textDiffLines: diffLinesArr,
-    csvLeft: lCsv.split('\n'),
-    csvRight: rCsv.split('\n'),
-  },
-});
-          }}
-          className="px-6 py-2 rounded-md text-sm font-medium text-white bg-green-600 disabled:bg-gray-200 disabled:text-gray-400 cursor-pointer"
-        >
-          Find differences
-        </button>
+              // persist this diff for guests
+              saveDiff({
+                name: `${left.file.name} vs ${right.file.name}`,
+                leftFileName: left.file.name,
+                rightFileName: right.file.name,
+                diffData: {
+                  tableDiff: [{ headers: combinedHeaders, headersLeft, headersRight }, ...diffArr],
+                  textDiffLines: diffLinesArr,
+                  csvLeft: lCsv.split('\n'),
+                  csvRight: rCsv.split('\n'),
+                },
+              });
+            }}
+            className="px-6 py-2 rounded-md text-sm font-medium text-white bg-green-600 disabled:bg-gray-200 disabled:text-gray-400 cursor-pointer"
+          >
+            Find differences
+          </button>
+        </div>
       </div>
-          </div>
 
       {showDiff && (
         <div className="mt-8 flex flex-col md:flex-row gap-6 px-6" id="diff-viewer">
           {/* Sidebar */}
           <aside className="md:w-56 border-r md:pr-4 text-xs mb-4 md:mb-0">
             <h3 className="font-semibold text-sm mb-4">Saved Diffs</h3>
-            <ul className="space-y-2 max-h-72 overflow-auto">
+            <ul className="space-y-2 max-h-72 overflow-auto mr-2">
               {savedDiffs.map((d) => (
-                <li key={d.id}>
+                <li key={d.id} className="group relative">
                   <button
-                    className="w-full text-left hover:underline"
-                    onClick={async () => {
+                    className="cursor-pointer w-full text-left pr-6 hover:underline"
+                    onClick={async (e) => {
+                      e.stopPropagation();
                       const rec = await loadDiff(d.id);
                       if (!rec) return;
                       const data = rec.diffData || {};
@@ -291,6 +292,19 @@ saveDiff({
                     <span className="block truncate text-gray-800">{d.name}</span>
                     <span className="block text-gray-500 text-xxs">{new Date(d.createdAt).toLocaleString()}</span>
                   </button>
+                  {/* delete icon, visible on hover */}
+                  <button
+                    className="absolute cursor-pointer top-1 right-0 p-1 opacity-0 group-hover:opacity-100
+                    text-foreground bg-green-500/20 border border-accent/30 rounded-md hover:bg-green-500/40 hover:text-foreground
+                    "
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      await deleteDiff(d.id);
+                      setSavedDiffs((prev) => prev.filter((sd) => sd.id !== d.id));
+                    }}
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 </li>
               ))}
             </ul>
@@ -298,37 +312,37 @@ saveDiff({
           {/* Main diff area */}
           <section className="flex-1 overflow-auto">
             <div className="flex gap-4 border-b mb-4 text-sm">
-              <button className={`${activeTab==='table' ? 'font-semibold text-green-600 border-b-2 border-green-600' : ' font-semibold border-transparent border-b-2'}`} onClick={()=>setActiveTab('table')}>Table</button>
-              <button className={`${activeTab==='text' ? 'font-semibold text-green-600 border-b-2 border-green-600' : ' font-semibold border-transparent border-b-2'}`} onClick={()=>setActiveTab('text')}>Text</button>
+              <button className={`${activeTab === 'table' ? 'font-semibold text-green-600 border-b-2 border-green-600' : ' font-semibold border-transparent border-b-2'}`} onClick={() => setActiveTab('table')}>Table</button>
+              <button className={`${activeTab === 'text' ? 'font-semibold text-green-600 border-b-2 border-green-600' : ' font-semibold border-transparent border-b-2'}`} onClick={() => setActiveTab('text')}>Text</button>
             </div>
-            {activeTab==='table' ? (
+            {activeTab === 'table' ? (
               <div className="overflow-x-auto text-xs mr-2">
                 <table className="table-auto w-fit border-collapse text-left">
                   <thead>
                     <tr className="bg-gray-50">
                       <th className="border px-2 py-1 whitespace-nowrap text-right select-none text-gray-400">#</th>
-                      {(tableDiff[0]?.headers || []).map((h:any, idx:number)=>{
+                      {(tableDiff[0]?.headers || []).map((h: any, idx: number) => {
                         const onlyLeft = (tableDiff[0]?.headersLeft || []).includes(h) && !(tableDiff[0]?.headersRight || []).includes(h);
                         const onlyRight = (tableDiff[0]?.headersRight || []).includes(h) && !(tableDiff[0]?.headersLeft || []).includes(h);
-                        const base = onlyLeft? 'bg-green-50 text-green-700' : onlyRight? 'bg-red-50 text-red-700' : 'bg-gray-50';
+                        const base = onlyLeft ? 'bg-green-50 text-green-700' : onlyRight ? 'bg-red-50 text-red-700' : 'bg-gray-50';
                         return <th key={idx} className={`border px-2 py-1 whitespace-nowrap ${base}`}>{h}</th>;
                       })}
                     </tr>
                   </thead>
                   <tbody>
-                    {tableDiff.slice(1).map((row:any, idx:number)=> (
-                      <tr key={idx} className={row.type==='added' ? 'bg-green-50' : row.type==='removed' ? 'bg-red-50' : ''}>
-                        <td className="border px-2 py-1 text-right select-none text-gray-400 bg-gray-50">{idx+1}</td>
-                        {(tableDiff[0]?.headers||[]).map((_:any,cIdx:number)=>{
-                          const lVal = row.lRow?row.lRow[cIdx]:'';
-                          const rVal = row.rRow?row.rRow[cIdx]:'';
-                          const changed = row.type==='modified' && lVal!==rVal;
+                    {tableDiff.slice(1).map((row: any, idx: number) => (
+                      <tr key={idx} className={row.type === 'added' ? 'bg-green-50' : row.type === 'removed' ? 'bg-red-50' : ''}>
+                        <td className="border px-2 py-1 text-right select-none text-gray-400 bg-gray-50">{idx + 1}</td>
+                        {(tableDiff[0]?.headers || []).map((_: any, cIdx: number) => {
+                          const lVal = row.lRow ? row.lRow[cIdx] : '';
+                          const rVal = row.rRow ? row.rRow[cIdx] : '';
+                          const changed = row.type === 'modified' && lVal !== rVal;
                           let cellContent: React.ReactNode = lVal;
-                          if(row.type==='added'){
+                          if (row.type === 'added') {
                             cellContent = <span className="bg-green-200 text-green-900 px-0.5 rounded">{rVal}</span>;
-                          } else if(row.type==='removed'){
+                          } else if (row.type === 'removed') {
                             cellContent = <span className="bg-red-200 text-red-900 px-0.5 rounded">{lVal}</span>;
-                          } else if(changed){
+                          } else if (changed) {
                             cellContent = <>
                               <span className="bg-red-200 text-red-900 px-0.5 rounded mr-1">{lVal}</span>
                               <span className="bg-green-200 text-green-900 px-0.5 rounded">{rVal}</span>
@@ -343,49 +357,49 @@ saveDiff({
               </div>
             ) : (
               <div className="flex gap-4 text-xs">
-                  {/* Original CSV */}
-                  <div className="flex-1 bg-white border  rounded-lg border-gray-200 overflow-hidden">
-                    <div className="flex items-center justify-between px-3 py-1 bg-red-50 border-b">
-                      <span className="flex items-center gap-1 text-sm font-medium text-red-900">
-                        <span className="w-3 h-3 bg-red-400 rounded-full inline-block" />
-                        {removedCount} removal{removedCount!==1?'s':''}
-                      </span>
-                      <span className="text-xs text-gray-600">{csvLeft.length} lines</span>
-                    </div>
-                    <div className="p-3 font-mono overflow-auto max-h-[600px]">
-                      {csvLeft.map((line, i) => {
-                        const changed = line !== (csvRight[i] || '');
-                        return (
-                          <div key={i} className={`flex py-0.5 ${changed ? 'bg-red-50' : ''}`}>
-                            <span className="w-10 text-right pr-3 text-gray-400 select-none">{line ? i+1 : ''}</span>
-                            <span className="flex-1">{changed ? <span className="bg-red-200 text-red-900 px-0.5 rounded">{line}</span> : line}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
+                {/* Original CSV */}
+                <div className="flex-1 bg-white border  rounded-lg border-gray-200 overflow-hidden">
+                  <div className="flex items-center justify-between px-3 py-1 bg-red-50 border-b">
+                    <span className="flex items-center gap-1 text-sm font-medium text-red-900">
+                      <span className="w-3 h-3 bg-red-400 rounded-full inline-block" />
+                      {removedCount} removal{removedCount !== 1 ? 's' : ''}
+                    </span>
+                    <span className="text-xs text-gray-600">{csvLeft.length} lines</span>
                   </div>
-                  {/* Changed CSV */}
-                  <div className="flex-1 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                    <div className="flex items-center justify-between px-3 py-1 bg-green-50 border-b">
-                      <span className="flex items-center gap-1 text-sm font-medium text-green-900">
-                        <span className="w-3 h-3 bg-green-400 rounded-full inline-block" />
-                        {addedCount} addition{addedCount!==1?'s':''}
-                      </span>
-                      <span className="text-xs text-gray-600">{csvRight.length} lines</span>
-                    </div>
-                    <div className="p-3 font-mono overflow-auto max-h-[600px]">
-                      {csvRight.map((line, i) => {
-                        const changed = line !== (csvLeft[i] || '');
-                        return (
-                          <div key={i} className={`flex py-0.5 ${changed ? 'bg-green-50' : ''}`}>
-                            <span className="w-10 text-right pr-3 text-gray-400 select-none">{line ? i+1 : ''}</span>
-                            <span className="flex-1">{changed ? <span className="bg-green-200 text-green-900 px-0.5 rounded">{line}</span> : line}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
+                  <div className="p-3 font-mono overflow-auto max-h-[600px]">
+                    {csvLeft.map((line, i) => {
+                      const changed = line !== (csvRight[i] || '');
+                      return (
+                        <div key={i} className={`flex py-0.5 ${changed ? 'bg-red-50' : ''}`}>
+                          <span className="w-10 text-right pr-3 text-gray-400 select-none">{line ? i + 1 : ''}</span>
+                          <span className="flex-1">{changed ? <span className="bg-red-200 text-red-900 px-0.5 rounded">{line}</span> : line}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
+                {/* Changed CSV */}
+                <div className="flex-1 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                  <div className="flex items-center justify-between px-3 py-1 bg-green-50 border-b">
+                    <span className="flex items-center gap-1 text-sm font-medium text-green-900">
+                      <span className="w-3 h-3 bg-green-400 rounded-full inline-block" />
+                      {addedCount} addition{addedCount !== 1 ? 's' : ''}
+                    </span>
+                    <span className="text-xs text-gray-600">{csvRight.length} lines</span>
+                  </div>
+                  <div className="p-3 font-mono overflow-auto max-h-[600px]">
+                    {csvRight.map((line, i) => {
+                      const changed = line !== (csvLeft[i] || '');
+                      return (
+                        <div key={i} className={`flex py-0.5 ${changed ? 'bg-green-50' : ''}`}>
+                          <span className="w-10 text-right pr-3 text-gray-400 select-none">{line ? i + 1 : ''}</span>
+                          <span className="flex-1">{changed ? <span className="bg-green-200 text-green-900 px-0.5 rounded">{line}</span> : line}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
             )}
           </section>
         </div>
