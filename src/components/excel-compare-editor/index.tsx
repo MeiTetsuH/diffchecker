@@ -179,7 +179,7 @@ export default function ExcelCompareEditor() {
             <p className="font-medium text-gray-800">Drop excel here</p>
             <p className="text-sm text-gray-500 mb-4">xlsx, xls, csv, tsv, etc</p>
             <button
-              onClick={() => inputRef.current?.click()}
+              onClick={(e) => (e.stopPropagation(), inputRef.current?.click())}
               className="px-4 py-2 text-sm font-medium bg-gray-100 hover:bg-gray-200 rounded-md border border-gray-300 cursor-pointer"
             >
               Browse
