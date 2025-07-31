@@ -39,8 +39,8 @@ const commonStyles = {
     justifyContent: 'center',
     border: '2px dashed var(--color-separator)',
     borderRadius: 'var(--border-radius)',
-    padding: '1.5rem',
-    height: '24rem', // 384px
+    padding: '1rem',
+    height: '20rem', // 减少高度
     textAlign: 'center' as const,
     transition: 'background-color 0.2s',
     cursor: 'pointer' as const,
@@ -59,12 +59,12 @@ const SpreadsheetPreview: React.FC<{
   const sheet = loaded.data.Sheets[sheetName];
   const rows: any[][] = useMemo(() => (sheet ? XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false }) as any[][] : []), [sheet]);
   const headers = rows[headerLine - 1] || [];
-  const body = rows.slice(headerLine, headerLine + 20);
+  const body = rows.slice(headerLine, headerLine + 15); // 减少预览行数
 
   return (
     <div style={{ width: '100%', textAlign: 'left' }} onClick={(e) => e.stopPropagation()}>
       <div style={{ border: '1px solid var(--color-separator)', borderRadius: 'var(--border-radius)', overflow: 'hidden' }}>
-        <div style={{ overflowY: 'auto', maxHeight: '16rem' }}>
+        <div style={{ overflowY: 'auto', maxHeight: '12rem' }}> {/* 减少预览高度 */}
           <table style={{ minWidth: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
             <thead style={{ backgroundColor: 'var(--color-widget-background-highlight)', position: 'sticky', top: 0 }}>
               <tr>
@@ -235,8 +235,22 @@ export default function ExcelCompareEditor() {
 
 
   return (
-    <div style={{ width: '100%', padding: '1rem' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
+    <div style={{ 
+      width: '100%', 
+      height: '100vh', 
+      display: 'flex', 
+      flexDirection: 'column',
+      padding: '0.75rem',
+      boxSizing: 'border-box',
+      overflow: 'hidden'
+    }}>
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', 
+        gap: '1rem', 
+        marginBottom: '1rem',
+        flexShrink: 0
+      }}>
         <DropZone side="left" loadedFile={left} inputRef={leftInputRef} onFiles={handleFiles} onClear={() => setLeft(null)} 
           sheetName={leftSheet} setSheetName={setLeftSheet}
           headerLine={leftHeaderLine} setHeaderLine={setLeftHeaderLine}
@@ -246,7 +260,7 @@ export default function ExcelCompareEditor() {
           headerLine={rightHeaderLine} setHeaderLine={setRightHeaderLine}
         />
       </div>
-      <div style={{ display: 'flex', justifyContent: 'center' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem', flexShrink: 0 }}>
         <button
           onClick={findDifferences}
           disabled={!left || !right}
@@ -257,10 +271,30 @@ export default function ExcelCompareEditor() {
       </div>
 
       {showDiff && (
-        <div style={{ marginTop: '2rem', display: 'flex', gap: '1.5rem'}}>
-          <aside style={{ width: '224px', borderRight: '1px solid var(--color-separator)', paddingRight: '1rem', fontSize: '12px' }}>
-            <h3 style={{ fontWeight: 600, fontSize: '14px', marginBottom: '1rem' }}>Saved Diffs</h3>
-            <ul style={{ listStyle: 'none', maxHeight: '18rem', overflow: 'auto', marginRight: '0.5rem' }}>
+        <div style={{ 
+          display: 'flex', 
+          gap: '1.5rem',
+          flex: 1,
+          minHeight: 0,
+          overflow: 'hidden'
+        }}>
+          <aside style={{ 
+            width: '224px', 
+            borderRight: '1px solid var(--color-separator)', 
+            paddingRight: '1rem', 
+            fontSize: '12px',
+            flexShrink: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden'
+          }}>
+            <h3 style={{ fontWeight: 600, fontSize: '14px', marginBottom: '1rem', flexShrink: 0 }}>Saved Diffs</h3>
+            <ul style={{ 
+              listStyle: 'none', 
+              flex: 1,
+              overflow: 'auto', 
+              marginRight: '0.5rem' 
+            }}>
               {savedDiffs.map((d) => (
                 <li key={d.id} style={{ position: 'relative', marginBottom: '0.5rem' }}>
                    <button
@@ -284,16 +318,61 @@ export default function ExcelCompareEditor() {
             </ul>
           </aside>
 
-          <section style={{ flex: 1, overflow: 'auto' }}>
-            <div style={{ display: 'flex', gap: '1rem', borderBottom: '1px solid var(--color-separator)', marginBottom: '1rem', fontSize: '14px' }}>
-              <button style={{ fontWeight: activeTab === 'table' ? 600 : 500, color: activeTab === 'table' ? 'var(--color-primary)' : 'inherit', borderBottom: activeTab === 'table' ? '2px solid var(--color-primary)' : '2px solid transparent', paddingBottom: '0.5rem' }} onClick={() => setActiveTab('table')}>Table</button>
-              <button style={{ fontWeight: activeTab === 'text' ? 600 : 500, color: activeTab === 'text' ? 'var(--color-primary)' : 'inherit', borderBottom: activeTab === 'text' ? '2px solid var(--color-primary)' : '2px solid transparent', paddingBottom: '0.5rem' }} onClick={() => setActiveTab('text')}>Text</button>
+          <section style={{ 
+            flex: 1, 
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            minWidth: 0
+          }}>
+            <div style={{ 
+              display: 'flex', 
+              gap: '1rem', 
+              borderBottom: '1px solid var(--color-separator)', 
+              marginBottom: '1rem', 
+              fontSize: '14px',
+              flexShrink: 0
+            }}>
+              <button 
+                style={{ 
+                  background: 'none',
+                  border: 'none',
+                  fontWeight: activeTab === 'table' ? 600 : 500, 
+                  color: activeTab === 'table' ? 'var(--color-primary)' : 'inherit', 
+                  borderBottomWidth: '2px',
+                  borderBottomStyle: 'solid',
+                  borderBottomColor: activeTab === 'table' ? 'var(--color-primary)' : 'transparent', 
+                  paddingBottom: '0.5rem',
+                  cursor: 'pointer'
+                }} 
+                onClick={() => setActiveTab('table')}
+              >
+                Table
+              </button>
+              <button 
+                style={{ 
+                  background: 'none',
+                  border: 'none',
+                  fontWeight: activeTab === 'text' ? 600 : 500, 
+                  color: activeTab === 'text' ? 'var(--color-primary)' : 'inherit', 
+                  borderBottomWidth: '2px',
+                  borderBottomStyle: 'solid',
+                  borderBottomColor: activeTab === 'text' ? 'var(--color-primary)' : 'transparent', 
+                  paddingBottom: '0.5rem',
+                  cursor: 'pointer'
+                }} 
+                onClick={() => setActiveTab('text')}
+              >
+                Text
+              </button>
             </div>
-            {activeTab === 'table' ? (
-              <TableDiffView tableDiff={tableDiff} />
-            ) : (
-              <TextDiffView csvLeft={csvLeft} csvRight={csvRight} />
-            )}
+            <div style={{ flex: 1, overflow: 'hidden' }}>
+              {activeTab === 'table' ? (
+                <TableDiffView tableDiff={tableDiff} />
+              ) : (
+                <TextDiffView csvLeft={csvLeft} csvRight={csvRight} />
+              )}
+            </div>
           </section>
         </div>
       )}
@@ -389,7 +468,11 @@ const TableDiffView: React.FC<{ tableDiff: any[] }> = ({ tableDiff }) => {
   };
 
   return (
-    <div style={{ overflowX: 'auto', fontSize: '12px', maxHeight: '600px' }}>
+    <div style={{ 
+      height: '100%',
+      overflow: 'auto', 
+      fontSize: '12px'
+    }}>
       <table style={{ minWidth: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
         <thead style={{ position: 'sticky', top: 0 }}>
           <tr>
@@ -466,13 +549,38 @@ const TextDiffView: React.FC<{ csvLeft: string[], csvRight: string[] }> = ({ csv
       }, [lines]);
 
     return (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', fontSize: '12px' }}>
-            <div style={{ border: '1px solid var(--color-separator)', borderRadius: 'var(--border-radius)', overflow: 'hidden' }}>
-                <div style={{ padding: '0.5rem 0.75rem', backgroundColor: 'rgba(255, 0, 0, 0.05)', borderBottom: '1px solid var(--color-separator)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: '1fr 1fr', 
+          gap: '1rem', 
+          fontSize: '12px',
+          height: '100%'
+        }}>
+            <div style={{ 
+              border: '1px solid var(--color-separator)', 
+              borderRadius: 'var(--border-radius)', 
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column'
+            }}>
+                <div style={{ 
+                  padding: '0.5rem 0.75rem', 
+                  backgroundColor: 'rgba(255, 0, 0, 0.05)', 
+                  borderBottom: '1px solid var(--color-separator)', 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center',
+                  flexShrink: 0
+                }}>
                     <span style={{ fontWeight: 500, color: 'var(--color-text-highlight)' }}>{removedCount} removals</span>
                     <span style={{ color: 'var(--color-text-subdue)' }}>{csvLeft.length} lines</span>
                 </div>
-                <div style={{ fontFamily: 'var(--font-family)', overflow: 'auto', maxHeight: '600px', padding: '0.75rem' }}>
+                <div style={{ 
+                  fontFamily: 'var(--font-family)', 
+                  overflow: 'auto', 
+                  flex: 1,
+                  padding: '0.75rem' 
+                }}>
                     {lines.map((line, i) => {
                         const isChanged = line.left !== line.right;
                         return (
@@ -484,12 +592,31 @@ const TextDiffView: React.FC<{ csvLeft: string[], csvRight: string[] }> = ({ csv
                     })}
                 </div>
             </div>
-            <div style={{ border: '1px solid var(--color-separator)', borderRadius: 'var(--border-radius)', overflow: 'hidden' }}>
-                <div style={{ padding: '0.5rem 0.75rem', backgroundColor: 'rgba(0, 255, 0, 0.05)', borderBottom: '1px solid var(--color-separator)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+            <div style={{ 
+              border: '1px solid var(--color-separator)', 
+              borderRadius: 'var(--border-radius)', 
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column'
+            }}>
+                <div style={{ 
+                  padding: '0.5rem 0.75rem', 
+                  backgroundColor: 'rgba(0, 255, 0, 0.05)', 
+                  borderBottom: '1px solid var(--color-separator)', 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center',
+                  flexShrink: 0
+                }}>
                     <span style={{ fontWeight: 500, color: 'var(--color-text-highlight)' }}>{addedCount} additions</span>
                     <span style={{ color: 'var(--color-text-subdue)' }}>{csvRight.length} lines</span>
                 </div>
-                <div style={{ fontFamily: 'var(--font-family)', overflow: 'auto', maxHeight: '600px', padding: '0.75rem' }}>
+                <div style={{ 
+                  fontFamily: 'var(--font-family)', 
+                  overflow: 'auto', 
+                  flex: 1,
+                  padding: '0.75rem' 
+                }}>
                     {lines.map((line, i) => {
                         const isChanged = line.left !== line.right;
                         return (
