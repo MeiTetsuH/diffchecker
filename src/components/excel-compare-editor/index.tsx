@@ -221,16 +221,26 @@ export default function ExcelCompareEditor() {
         setSavedDiffs(prev => [saved, ...prev.filter(d => d.id !== saved.id)].sort((a,b) => b.createdAt - a.createdAt));
     });
   };
+  
+  const loadSavedDiff = async (id: string) => {
+    const rec = await loadDiff(id);
+    if (!rec || !rec.diffData) return;
+    const data = rec.diffData;
+    setTableDiff(data.tableDiff || []);
+    setCsvLeft(data.csvLeft || []);
+    setCsvRight(data.csvRight || []);
+    setActiveTab('table');
+    setShowDiff(true);
+  };
+
 
   return (
     <div style={{ width: '100%', padding: '1rem' }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
-        {/* Left Dropzone */}
         <DropZone side="left" loadedFile={left} inputRef={leftInputRef} onFiles={handleFiles} onClear={() => setLeft(null)} 
           sheetName={leftSheet} setSheetName={setLeftSheet}
           headerLine={leftHeaderLine} setHeaderLine={setLeftHeaderLine}
         />
-        {/* Right Dropzone */}
         <DropZone side="right" loadedFile={right} inputRef={rightInputRef} onFiles={handleFiles} onClear={() => setRight(null)}
           sheetName={rightSheet} setSheetName={setRightSheet}
           headerLine={rightHeaderLine} setHeaderLine={setRightHeaderLine}
@@ -248,27 +258,39 @@ export default function ExcelCompareEditor() {
 
       {showDiff && (
         <div style={{ marginTop: '2rem', display: 'flex', gap: '1.5rem'}}>
-          {/* Sidebar */}
           <aside style={{ width: '224px', borderRight: '1px solid var(--color-separator)', paddingRight: '1rem', fontSize: '12px' }}>
             <h3 style={{ fontWeight: 600, fontSize: '14px', marginBottom: '1rem' }}>Saved Diffs</h3>
             <ul style={{ listStyle: 'none', maxHeight: '18rem', overflow: 'auto', marginRight: '0.5rem' }}>
               {savedDiffs.map((d) => (
                 <li key={d.id} style={{ position: 'relative', marginBottom: '0.5rem' }}>
-                   {/* ... Saved Diffs list ... */}
+                   <button
+                    onClick={() => loadSavedDiff(d.id)}
+                    style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', textAlign: 'left', width: '100%', paddingRight: '2rem' }}
+                  >
+                    <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--color-text-highlight)' }}>{d.name}</span>
+                    <span style={{ fontSize: '10px', color: 'var(--color-text-subdue)' }}>{new Date(d.createdAt).toLocaleString()}</span>
+                  </button>
+                  <button
+                    style={{ position: 'absolute', top: '50%', right: '0', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer' }}
+                    onClick={async () => {
+                      await deleteDiff(d.id);
+                      setSavedDiffs((prev) => prev.filter((sd) => sd.id !== d.id));
+                    }}
+                  >
+                    <X size={16} color="var(--color-text-subdue)" />
+                  </button>
                 </li>
               ))}
             </ul>
           </aside>
-          {/* Main diff area */}
+
           <section style={{ flex: 1, overflow: 'auto' }}>
             <div style={{ display: 'flex', gap: '1rem', borderBottom: '1px solid var(--color-separator)', marginBottom: '1rem', fontSize: '14px' }}>
               <button style={{ fontWeight: activeTab === 'table' ? 600 : 500, color: activeTab === 'table' ? 'var(--color-primary)' : 'inherit', borderBottom: activeTab === 'table' ? '2px solid var(--color-primary)' : '2px solid transparent', paddingBottom: '0.5rem' }} onClick={() => setActiveTab('table')}>Table</button>
               <button style={{ fontWeight: activeTab === 'text' ? 600 : 500, color: activeTab === 'text' ? 'var(--color-primary)' : 'inherit', borderBottom: activeTab === 'text' ? '2px solid var(--color-primary)' : '2px solid transparent', paddingBottom: '0.5rem' }} onClick={() => setActiveTab('text')}>Text</button>
             </div>
             {activeTab === 'table' ? (
-              <div style={{ overflowX: 'auto', fontSize: '12px' }}>
-                {/* Table Diff */}
-              </div>
+              <TableDiffView tableDiff={tableDiff} />
             ) : (
               <TextDiffView csvLeft={csvLeft} csvRight={csvRight} />
             )}
@@ -279,12 +301,11 @@ export default function ExcelCompareEditor() {
   );
 }
 
-// Helper components moved outside the main component for clarity
-
+// Helper components
 const DropZone: React.FC<{
   side: 'left' | 'right';
   loadedFile: LoadedFile | null;
-  inputRef: React.RefObject<HTMLInputElement| null>;
+  inputRef: React.RefObject<HTMLInputElement | null>;
   onFiles: (files: FileList | null, side: 'left' | 'right') => void;
   onClear: () => void;
   sheetName: string;
@@ -347,6 +368,84 @@ const DropZone: React.FC<{
   )
 }
 
+const TableDiffView: React.FC<{ tableDiff: any[] }> = ({ tableDiff }) => {
+  if (!tableDiff || tableDiff.length < 1) return null;
+
+  const { headers, headersLeft, headersRight } = tableDiff[0] || {};
+  const diffRows = tableDiff.slice(1);
+
+  const getHeaderStyle = (h: string): React.CSSProperties => {
+    const onlyInLeft = headersLeft.includes(h) && !headersRight.includes(h);
+    const onlyInRight = !headersLeft.includes(h) && headersRight.includes(h);
+    if (onlyInLeft) return { backgroundColor: 'rgba(255, 0, 0, 0.1)', color: 'var(--color-text-highlight)' };
+    if (onlyInRight) return { backgroundColor: 'rgba(0, 255, 0, 0.1)', color: 'var(--color-text-highlight)' };
+    return { backgroundColor: 'var(--color-widget-background-highlight)' };
+  };
+
+  const getRowStyle = (type: string): React.CSSProperties => {
+    if (type === 'added') return { backgroundColor: 'rgba(0, 255, 0, 0.05)' };
+    if (type === 'removed') return { backgroundColor: 'rgba(255, 0, 0, 0.05)' };
+    return {};
+  };
+
+  return (
+    <div style={{ overflowX: 'auto', fontSize: '12px', maxHeight: '600px' }}>
+      <table style={{ minWidth: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+        <thead style={{ position: 'sticky', top: 0 }}>
+          <tr>
+            <th style={{ border: '1px solid var(--color-separator)', padding: '4px 8px', userSelect: 'none', color: 'var(--color-text-subdue)', backgroundColor: 'var(--color-widget-background-highlight)' }}>#</th>
+            {(headers || []).map((h: any, idx: number) => (
+              <th key={idx} style={{ border: '1px solid var(--color-separator)', padding: '4px 8px', whiteSpace: 'nowrap', fontWeight: 500, ...getHeaderStyle(h) }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {diffRows.map((row: any, idx: number) => (
+            <tr key={idx} style={getRowStyle(row.type)}>
+              <td style={{ border: '1px solid var(--color-separator)', padding: '4px 8px', textAlign: 'right', userSelect: 'none', color: 'var(--color-text-subdue)', backgroundColor: 'var(--color-widget-background-highlight)' }}>{idx + 1}</td>
+              {(headers || []).map((h: any, cIdx: number) => {
+                const lVal = row.lRow ? row.lRow[h] : undefined;
+                const rVal = row.rRow ? row.rRow[h] : undefined;
+                
+                let cellContent: React.ReactNode;
+
+                switch (row.type) {
+                  case 'same':
+                    cellContent = lVal !== undefined ? lVal : '';
+                    break;
+                  case 'added':
+                    cellContent = <span style={{ backgroundColor: 'rgba(0, 255, 0, 0.2)', padding: '1px 3px', borderRadius: '3px' }}>{rVal}</span>;
+                    break;
+                  case 'removed':
+                    cellContent = <span style={{ backgroundColor: 'rgba(255, 0, 0, 0.2)', padding: '1px 3px', borderRadius: '3px', textDecoration: 'line-through' }}>{lVal}</span>;
+                    break;
+                  case 'modified':
+                    if (lVal !== rVal) {
+                      cellContent = (
+                        <>
+                          {lVal !== undefined && <span style={{ backgroundColor: 'rgba(255, 0, 0, 0.2)', padding: '1px 3px', borderRadius: '3px', textDecoration: 'line-through', marginRight: '4px' }}>{lVal}</span>}
+                          {rVal !== undefined && <span style={{ backgroundColor: 'rgba(0, 255, 0, 0.2)', padding: '1px 3px', borderRadius: '3px' }}>{rVal}</span>}
+                        </>
+                      );
+                    } else {
+                      cellContent = lVal !== undefined ? lVal : '';
+                    }
+                    break;
+                  default:
+                    cellContent = lVal !== undefined ? lVal : '';
+                }
+                
+                return <td key={cIdx} style={{ border: '1px solid var(--color-separator)', padding: '4px 8px', whiteSpace: 'nowrap' }}>{cellContent}</td>
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+
 const TextDiffView: React.FC<{ csvLeft: string[], csvRight: string[] }> = ({ csvLeft, csvRight }) => {
     const maxLines = Math.max(csvLeft.length, csvRight.length);
     const lines = Array.from({ length: maxLines }, (_, i) => ({
@@ -368,7 +467,6 @@ const TextDiffView: React.FC<{ csvLeft: string[], csvRight: string[] }> = ({ csv
 
     return (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', fontSize: '12px' }}>
-            {/* Removals Column */}
             <div style={{ border: '1px solid var(--color-separator)', borderRadius: 'var(--border-radius)', overflow: 'hidden' }}>
                 <div style={{ padding: '0.5rem 0.75rem', backgroundColor: 'rgba(255, 0, 0, 0.05)', borderBottom: '1px solid var(--color-separator)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
                     <span style={{ fontWeight: 500, color: 'var(--color-text-highlight)' }}>{removedCount} removals</span>
@@ -386,7 +484,6 @@ const TextDiffView: React.FC<{ csvLeft: string[], csvRight: string[] }> = ({ csv
                     })}
                 </div>
             </div>
-            {/* Additions Column */}
             <div style={{ border: '1px solid var(--color-separator)', borderRadius: 'var(--border-radius)', overflow: 'hidden' }}>
                 <div style={{ padding: '0.5rem 0.75rem', backgroundColor: 'rgba(0, 255, 0, 0.05)', borderBottom: '1px solid var(--color-separator)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
                     <span style={{ fontWeight: 500, color: 'var(--color-text-highlight)' }}>{addedCount} additions</span>
