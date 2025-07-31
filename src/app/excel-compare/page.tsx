@@ -1,6 +1,5 @@
 'use client';
 
-import { BaseLayout } from '@/layout/base-layout';
 import dynamic from 'next/dynamic';
 
 const ExcelCompareEditor = dynamic(() => import('@/components/excel-compare-editor'), {
@@ -9,8 +8,6 @@ const ExcelCompareEditor = dynamic(() => import('@/components/excel-compare-edit
 
 export default function ExcelComparePage() {
   return (
-    <BaseLayout>
-        <ExcelCompareEditor />
-    </BaseLayout>
+    <ExcelCompareEditor />
   );
 }

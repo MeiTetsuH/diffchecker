@@ -1,19 +1,47 @@
-import { HeroSection } from "@/components/ui/dynamic-hero";
-import { BaseLayout } from "@/layout/base-layout";
+'use client';
+
+import { useState } from 'react';
+import TextCompareEditor from '@/components/text-compare-editor';
+import ExcelCompareEditor from '@/components/excel-compare-editor';
 
 export default function Home() {
+  const [activeEditor, setActiveEditor] = useState('text');
+
   return (
-    <div>
-    <BaseLayout>
-        <HeroSection
-          heading="Compare Text, Spreadsheets, JSON etc."
-          tagline="A Simple Way to Diff"
-          buttonText="Let's diff it"
-          buttonHref="/text-compare"
-          imageUrl="https://cdn.plyr.io/static/demo/View_From_A_Blue_Moon_Trailer-HD.jpg"
-          videoUrl="https://github.com/ShatteredDisk/rickroll/raw/refs/heads/master/rickroll.mp4"
-        />
-      </BaseLayout>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: 'var(--color-background)' }}>
+      <div style={{ padding: '1rem', borderBottom: '1px solid var(--color-separator)' }}>
+        <button 
+          onClick={() => setActiveEditor('text')} 
+          style={{
+            padding: '0.5rem 1rem',
+            marginRight: '1rem',
+            border: 'none',
+            borderRadius: 'var(--border-radius)',
+            backgroundColor: activeEditor === 'text' ? 'var(--color-primary)' : 'var(--color-widget-background)',
+            color: activeEditor === 'text' ? 'var(--color-widget-background)' : 'var(--color-text-base)',
+            cursor: 'pointer'
+          }}
+        >
+          Text Compare
+        </button>
+        <button 
+          onClick={() => setActiveEditor('excel')} 
+          style={{
+            padding: '0.5rem 1rem',
+            border: 'none',
+            borderRadius: 'var(--border-radius)',
+            backgroundColor: activeEditor === 'excel' ? 'var(--color-primary)' : 'var(--color-widget-background)',
+            color: activeEditor === 'excel' ? 'var(--color-widget-background)' : 'var(--color-text-base)',
+            cursor: 'pointer'
+          }}
+        >
+          Excel Compare
+        </button>
+      </div>
+      <div style={{ flexGrow: 1 }}>
+        {activeEditor === 'text' && <TextCompareEditor />}
+        {activeEditor === 'excel' && <ExcelCompareEditor />}
+      </div>
     </div>
   );
 }
