@@ -16,12 +16,12 @@ function DynamicFooter() {
         socialLinks={[
           {
             icon: <MylinxLogo className="h-5 w-5" />,
-            href: "https://mylinx.cc/asad",
-            label: "Mylinx",
+            href: "https://mingzhe.uk",
+            label: "Mingzhe",
           },
           {
             icon: <Github className="h-5 w-5" />,
-            href: "https://github.com/asadbek064",
+            href: "https://github.com/MeiTetsuH",
             label: "GitHub",
           },
         ]}
