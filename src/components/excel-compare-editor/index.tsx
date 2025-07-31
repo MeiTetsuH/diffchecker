@@ -77,7 +77,7 @@ export default function ExcelCompareEditor() {
     setDiffResult([{ headers }, ...result]);
   };
 
-  const renderFileInput = (side: 'left' | 'right', file: LoadedFile | null, ref: React.RefObject<HTMLInputElement>) => (
+  const renderFileInput = (side: 'left' | 'right', file: LoadedFile | null, ref: React.RefObject<HTMLInputElement | null>) => (
     <div style={{ backgroundColor: 'var(--color-widget-background-highlight)', padding: '1rem', borderRadius: 'var(--border-radius)', border: '1px solid var(--color-separator)' }}>
       <h3 style={{ color: 'var(--color-text-highlight)', marginBottom: '1rem' }}>{side === 'left' ? 'Original File' : 'Changed File'}</h3>
       <button 
