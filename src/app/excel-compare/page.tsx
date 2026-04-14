@@ -7,7 +7,5 @@ const ExcelCompareEditor = dynamic(() => import('@/components/excel-compare-edit
 });
 
 export default function ExcelComparePage() {
-  return (
-    <ExcelCompareEditor />
-  );
+  return <ExcelCompareEditor />;
 }

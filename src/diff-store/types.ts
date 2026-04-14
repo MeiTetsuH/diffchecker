@@ -1,3 +1,5 @@
+import type { DiffData } from '@/types/excel-diff';
+
 export type SavedDiff = {
   /** Primary key – UUID */
   id: string;
@@ -7,8 +9,8 @@ export type SavedDiff = {
   leftFileName: string;
   /** Name of the right-hand file */
   rightFileName: string;
-  /** Raw diff results – implementation defined */
-  diffData: any;
+  /** Structured diff results */
+  diffData: DiffData;
   /** Creation timestamp (ms since epoch) */
   createdAt: number;
   /** Updated timestamp (ms since epoch) */

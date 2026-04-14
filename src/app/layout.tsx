@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import Navigation from "@/components/navigation";
 
 export const metadata: Metadata = {
   title: "DiffChecker",
@@ -14,7 +15,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        {children}
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: 'var(--color-background)' }}>
+          <Navigation />
+          <div style={{ flexGrow: 1, overflow: 'hidden' }}>
+            {children}
+          </div>
+        </div>
       </body>
     </html>
   );
