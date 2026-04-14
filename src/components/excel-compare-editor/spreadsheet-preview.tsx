@@ -31,6 +31,17 @@ export const SpreadsheetPreview: React.FC<SpreadsheetPreviewProps> = ({
   );
   const headers = rows[headerLine - 1] || [];
   const body = rows.slice(headerLine, headerLine + 15);
+  const maxHeaderLine = Math.max(rows.length, 1);
+
+  const handleHeaderLineChange = (raw: string) => {
+    const parsed = Number.parseInt(raw, 10);
+    if (!Number.isFinite(parsed)) {
+      setHeaderLine(1);
+      return;
+    }
+    const clamped = Math.min(Math.max(parsed, 1), maxHeaderLine);
+    setHeaderLine(clamped);
+  };
 
   return (
     <div style={{ width: '100%', textAlign: 'left' }} onClick={(e) => e.stopPropagation()}>
@@ -77,9 +88,9 @@ export const SpreadsheetPreview: React.FC<SpreadsheetPreviewProps> = ({
         <input
           type="number"
           min={1}
-          max={rows.length || 1}
+          max={maxHeaderLine}
           value={headerLine}
-          onChange={(e) => setHeaderLine(Number(e.target.value))}
+          onChange={(e) => handleHeaderLineChange(e.target.value)}
           style={{ ...commonStyles.button, width: '4rem', padding: '0.5rem' }}
         />
       </div>

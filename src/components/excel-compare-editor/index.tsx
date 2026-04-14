@@ -26,11 +26,21 @@ export default function ExcelCompareEditor() {
   const [csvLeft, setCsvLeft] = useState<string[]>([]);
   const [csvRight, setCsvRight] = useState<string[]>([]);
   const [savedDiffs, setSavedDiffs] = useState<SavedDiff[]>([]);
+  const [uiError, setUiError] = useState<string | null>(null);
 
   useEffect(() => {
     getAllDiffs().then((diffs) =>
       setSavedDiffs(diffs.sort((a, b) => b.createdAt - a.createdAt)),
     );
+  }, []);
+
+  useEffect(() => {
+    const onStorageError = (event: Event) => {
+      const detail = (event as CustomEvent<string>).detail;
+      setUiError(detail || 'Failed to access local diff history.');
+    };
+    window.addEventListener('diff-storage-error', onStorageError);
+    return () => window.removeEventListener('diff-storage-error', onStorageError);
   }, []);
 
   const [left, setLeft] = useState<LoadedFile | null>(null);
@@ -47,7 +57,7 @@ export default function ExcelCompareEditor() {
     if (!files || files.length === 0) return;
     const file = files[0];
     if (!ACCEPTED_MIME.includes(file.type) && !/\.(xlsx|xls|csv|tsv)$/i.test(file.name)) {
-      alert('Unsupported file type');
+      setUiError('Unsupported file type. Please upload .xlsx, .xls, .csv, or .tsv.');
       return;
     }
 
@@ -55,6 +65,7 @@ export default function ExcelCompareEditor() {
       const arrayBuffer = await file.arrayBuffer();
       const wb = XLSX.read(arrayBuffer, { type: 'array' });
       const loaded: LoadedFile = { file, data: wb };
+      setUiError(null);
       if (side === 'left') {
         setLeft(loaded);
         setLeftSheet(wb.SheetNames[0]);
@@ -66,12 +77,17 @@ export default function ExcelCompareEditor() {
       }
     } catch (e) {
       console.error(e);
-      alert('Failed to read spreadsheet');
+      setUiError('Failed to read spreadsheet. Please verify the file is not corrupted.');
     }
   };
 
   const findDifferences = () => {
     if (!left || !right) return;
+    if (!left.data.SheetNames.includes(leftSheet) || !right.data.SheetNames.includes(rightSheet)) {
+      setUiError('Please select a valid sheet on both sides before comparing.');
+      return;
+    }
+    setUiError(null);
 
     const result: DiffData = computeDiff({
       leftWorkbook: left.data,
@@ -99,12 +115,18 @@ export default function ExcelCompareEditor() {
           (a, b) => b.createdAt - a.createdAt,
         ),
       );
+    }).catch(() => {
+      setUiError('Comparison completed, but saving history failed in this browser.');
     });
   };
 
   const loadSavedDiff = async (id: string) => {
     const rec = await loadDiff(id);
-    if (!rec?.diffData) return;
+    if (!rec?.diffData) {
+      setUiError('Saved diff is unavailable.');
+      return;
+    }
+    setUiError(null);
     const data = rec.diffData;
     setTableDiff(data.tableDiff || null);
     setCsvLeft(data.csvLeft || []);
@@ -115,6 +137,23 @@ export default function ExcelCompareEditor() {
 
   return (
     <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', padding: '0.75rem', boxSizing: 'border-box', overflow: 'hidden' }}>
+      {uiError && (
+        <div
+          role="alert"
+          style={{
+            marginBottom: '0.75rem',
+            border: '1px solid rgba(255, 80, 80, 0.5)',
+            backgroundColor: 'rgba(255, 80, 80, 0.08)',
+            color: 'var(--color-text-highlight)',
+            borderRadius: 'var(--border-radius)',
+            padding: '0.5rem 0.75rem',
+            fontSize: '12px',
+            flexShrink: 0,
+          }}
+        >
+          {uiError}
+        </div>
+      )}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1rem', marginBottom: '1rem', flexShrink: 0 }}>
         <DropZone
           side="left"

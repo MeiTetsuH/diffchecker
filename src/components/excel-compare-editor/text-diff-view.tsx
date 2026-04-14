@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useMemo } from 'react';
+import { renderInlineDiff } from './inline-diff';
 
 interface TextDiffViewProps {
   csvLeft: string[];
@@ -35,13 +36,18 @@ export const TextDiffView: React.FC<TextDiffViewProps> = ({ csvLeft, csvRight })
         </div>
         <div style={{ fontFamily: 'var(--font-family)', overflow: 'auto', flex: 1, padding: '0.75rem' }}>
           {lines.map((line, i) => {
-            const isChanged = line.left !== line.right;
             return (
-              <div key={i} style={{ display: 'flex', backgroundColor: isChanged && line.left !== undefined ? 'rgba(255, 0, 0, 0.1)' : 'transparent' }}>
+              <div key={i} style={{ display: 'flex' }}>
                 <span style={{ width: '2.5rem', textAlign: 'right', paddingRight: '0.75rem', color: 'var(--color-text-subdue)', userSelect: 'none' }}>
                   {line.left !== undefined ? i + 1 : ''}
                 </span>
-                <span style={{ flex: 1, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{line.left}</span>
+                <span style={{ flex: 1, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                  {line.left === undefined
+                    ? ''
+                    : line.right === undefined
+                      ? renderInlineDiff(line.left, '', 'left')
+                      : renderInlineDiff(line.left, line.right, 'left')}
+                </span>
               </div>
             );
           })}
@@ -54,13 +60,18 @@ export const TextDiffView: React.FC<TextDiffViewProps> = ({ csvLeft, csvRight })
         </div>
         <div style={{ fontFamily: 'var(--font-family)', overflow: 'auto', flex: 1, padding: '0.75rem' }}>
           {lines.map((line, i) => {
-            const isChanged = line.left !== line.right;
             return (
-              <div key={i} style={{ display: 'flex', backgroundColor: isChanged && line.right !== undefined ? 'rgba(0, 255, 0, 0.1)' : 'transparent' }}>
+              <div key={i} style={{ display: 'flex' }}>
                 <span style={{ width: '2.5rem', textAlign: 'right', paddingRight: '0.75rem', color: 'var(--color-text-subdue)', userSelect: 'none' }}>
                   {line.right !== undefined ? i + 1 : ''}
                 </span>
-                <span style={{ flex: 1, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{line.right}</span>
+                <span style={{ flex: 1, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                  {line.right === undefined
+                    ? ''
+                    : line.left === undefined
+                      ? renderInlineDiff('', line.right, 'right')
+                      : renderInlineDiff(line.left, line.right, 'right')}
+                </span>
               </div>
             );
           })}

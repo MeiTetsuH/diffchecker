@@ -6,8 +6,7 @@ import { diffWords, diffChars } from 'diff';
 export default function TextCompareEditor() {
   const [originalText, setOriginalText] = useState('');
   const [changedText, setChangedText] = useState('');
-  const [diffMode, setDiffMode] = useState('split');
-  const [highlightMode, setHighlightMode] = useState('word');
+  const [highlightMode, setHighlightMode] = useState('character');
 
   const renderDiff = (original: string, changed: string, showAdded: boolean) => {
     const diffs = highlightMode === 'word' ? diffWords(original, changed) : diffChars(original, changed);

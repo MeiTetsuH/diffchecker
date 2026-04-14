@@ -2,6 +2,7 @@
 
 import React from 'react';
 import type { DiffHeader, DiffRow } from '@/types/excel-diff';
+import { renderInlineDiff } from './inline-diff';
 
 interface TableDiffViewProps {
   tableDiff: [DiffHeader, ...DiffRow[]];
@@ -75,18 +76,10 @@ export const TableDiffView: React.FC<TableDiffViewProps> = ({ tableDiff }) => {
                   case 'modified':
                     if (lVal !== rVal) {
                       cellContent = (
-                        <>
-                          {lVal !== undefined && (
-                            <span style={{ backgroundColor: 'rgba(255, 0, 0, 0.2)', padding: '1px 3px', borderRadius: '3px', textDecoration: 'line-through', marginRight: '4px' }}>
-                              {String(lVal)}
-                            </span>
-                          )}
-                          {rVal !== undefined && (
-                            <span style={{ backgroundColor: 'rgba(0, 255, 0, 0.2)', padding: '1px 3px', borderRadius: '3px' }}>
-                              {String(rVal)}
-                            </span>
-                          )}
-                        </>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                          <span>{renderInlineDiff(lVal, rVal, 'left')}</span>
+                          <span>{renderInlineDiff(lVal, rVal, 'right')}</span>
+                        </div>
                       );
                     } else {
                       cellContent = lVal !== undefined ? String(lVal) : '';
