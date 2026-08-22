@@ -1,6 +1,6 @@
 # DiffChecker
 
-A browser-based tool for comparing text and Excel/CSV files side by side. It is built with Next.js and deployed as a Cloudflare Worker with Static Assets through [OpenNext](https://opennext.js.org/cloudflare).
+A browser-based tool for comparing text and Excel/CSV files side by side. It is statically exported by Next.js and deployed through the existing Cloudflare Pages Git integration.
 
 All comparison and history processing stays in the browser. Text, code, and spreadsheet contents are never uploaded by this application.
 
@@ -25,7 +25,7 @@ All comparison and history processing stays in the browser. Text, code, and spre
 | Spreadsheet | [SheetJS (xlsx)](https://sheetjs.com/) |
 | Icons | [Lucide React](https://lucide.dev/) |
 | Storage | Native IndexedDB (browser-side) |
-| Deployment | [Cloudflare Workers](https://developers.cloudflare.com/workers/) with Static Assets via [@opennextjs/cloudflare](https://opennext.js.org/cloudflare) |
+| Deployment | [Cloudflare Pages](https://pages.cloudflare.com/) using Next.js static export |
 
 ## Project Structure
 
@@ -83,7 +83,7 @@ Open http://localhost:3000 to view the app.
 ### Cloudflare Deployment
 
 ```bash
-# Build & deploy to Cloudflare Workers
+# Build & deploy directly to the existing Cloudflare Pages project
 npm run deploy
 
 # Or preview locally with Wrangler

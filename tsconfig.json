@@ -26,11 +26,7 @@
       "@/*": [
         "./src/*"
       ]
-    },
-    "types": [
-      "./cloudflare-env.d.ts",
-      "node"
-    ]
+    }
   },
   "include": [
     "next-env.d.ts",

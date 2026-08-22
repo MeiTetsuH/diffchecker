@@ -9,12 +9,10 @@
 		"lint": "eslint .",
 		"typecheck": "tsc --noEmit",
 		"check": "npm run typecheck && npm run lint && npm run build",
-		"deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
-		"preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
-		"cf-typegen": "wrangler types --env-interface CloudflareEnv ./cloudflare-env.d.ts"
+		"deploy": "npm run build && wrangler pages deploy out --project-name=diffchecker",
+		"preview": "npm run build && wrangler pages dev out"
 	},
 	"dependencies": {
-		"@opennextjs/cloudflare": "^1.18.0",
 		"diff": "^8.0.2",
 		"lucide-react": "^0.523.0",
 		"next": "^16.3.2",
