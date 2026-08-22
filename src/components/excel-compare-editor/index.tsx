@@ -1,269 +1,351 @@
 'use client';
 
-import React, { useRef, useState, useEffect } from 'react';
-import * as XLSX from 'xlsx';
+import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
-import { saveDiff, loadDiff, getAllDiffs, deleteDiff } from '@/diff-store';
-import type { SavedDiff } from '@/diff-store/types';
-import type { DiffHeader, DiffRow, DiffData } from '@/types/excel-diff';
-import { computeDiff } from './diff-engine';
+import { deleteDiff, getAllDiffs, loadDiff, saveDiff } from '@/diff-store';
+import type { SavedDiffSummary } from '@/diff-store/types';
+import type { DiffData, DiffHeader, DiffRow } from '@/types/excel-diff';
 import { DropZone, type LoadedFile } from './drop-zone';
 import { TableDiffView } from './table-diff-view';
 import { TextDiffView } from './text-diff-view';
-import { commonStyles } from './styles';
+import styles from './styles.module.css';
 
-const ACCEPTED_MIME = [
+const ACCEPTED_MIME = new Set([
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   'application/vnd.ms-excel',
   'text/csv',
   'text/tab-separated-values',
-];
+]);
+
+type Side = 'left' | 'right';
+type Notice = { tone: 'error' | 'info'; message: string };
+
+function errorMessage(error: unknown, fallback: string): string {
+  if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+    return 'Local history is full. Delete older saved diffs and try again.';
+  }
+  return fallback;
+}
 
 export default function ExcelCompareEditor() {
-  const [showDiff, setShowDiff] = useState(false);
-  const [activeTab, setActiveTab] = useState<'table' | 'text'>('table');
-  const [tableDiff, setTableDiff] = useState<[DiffHeader, ...DiffRow[]] | null>(null);
-  const [csvLeft, setCsvLeft] = useState<string[]>([]);
-  const [csvRight, setCsvRight] = useState<string[]>([]);
-  const [savedDiffs, setSavedDiffs] = useState<SavedDiff[]>([]);
-  const [uiError, setUiError] = useState<string | null>(null);
-
-  useEffect(() => {
-    getAllDiffs().then((diffs) =>
-      setSavedDiffs(diffs.sort((a, b) => b.createdAt - a.createdAt)),
-    );
-  }, []);
-
-  useEffect(() => {
-    const onStorageError = (event: Event) => {
-      const detail = (event as CustomEvent<string>).detail;
-      setUiError(detail || 'Failed to access local diff history.');
-    };
-    window.addEventListener('diff-storage-error', onStorageError);
-    return () => window.removeEventListener('diff-storage-error', onStorageError);
-  }, []);
-
   const [left, setLeft] = useState<LoadedFile | null>(null);
   const [right, setRight] = useState<LoadedFile | null>(null);
   const [leftSheet, setLeftSheet] = useState('');
   const [rightSheet, setRightSheet] = useState('');
   const [leftHeaderLine, setLeftHeaderLine] = useState(1);
   const [rightHeaderLine, setRightHeaderLine] = useState(1);
+  const [loading, setLoading] = useState<Record<Side, boolean>>({ left: false, right: false });
+  const [isComparing, setIsComparing] = useState(false);
+  const [showDiff, setShowDiff] = useState(false);
+  const [activeTab, setActiveTab] = useState<'table' | 'text'>('table');
+  const [tableDiff, setTableDiff] = useState<[DiffHeader, ...DiffRow[]] | null>(null);
+  const [csvLeft, setCsvLeft] = useState<string[]>([]);
+  const [csvRight, setCsvRight] = useState<string[]>([]);
+  const [savedDiffs, setSavedDiffs] = useState<SavedDiffSummary[]>([]);
+  const [notice, setNotice] = useState<Notice | null>(null);
 
   const leftInputRef = useRef<HTMLInputElement>(null);
   const rightInputRef = useRef<HTMLInputElement>(null);
+  const fileRequest = useRef<Record<Side, number>>({ left: 0, right: 0 });
 
-  const handleFiles = async (files: FileList | null, side: 'left' | 'right') => {
-    if (!files || files.length === 0) return;
+  useEffect(() => {
+    let active = true;
+    getAllDiffs()
+      .then((diffs) => {
+        if (active) setSavedDiffs([...diffs].sort((a, b) => b.createdAt - a.createdAt));
+      })
+      .catch(() => {
+        if (active) {
+          setNotice({ tone: 'error', message: 'Local diff history is unavailable in this browser.' });
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const invalidateResult = () => {
+    setShowDiff(false);
+    setTableDiff(null);
+    setCsvLeft([]);
+    setCsvRight([]);
+  };
+
+  const clearSide = (side: Side) => {
+    fileRequest.current[side] += 1;
+    const inputRef = side === 'left' ? leftInputRef : rightInputRef;
+    if (inputRef.current) inputRef.current.value = '';
+
+    if (side === 'left') {
+      setLeft(null);
+      setLeftSheet('');
+      setLeftHeaderLine(1);
+    } else {
+      setRight(null);
+      setRightSheet('');
+      setRightHeaderLine(1);
+    }
+    setNotice(null);
+    invalidateResult();
+  };
+
+  const handleFiles = async (files: FileList | null, side: Side) => {
+    if (!files?.length) return;
     const file = files[0];
-    if (!ACCEPTED_MIME.includes(file.type) && !/\.(xlsx|xls|csv|tsv)$/i.test(file.name)) {
-      setUiError('Unsupported file type. Please upload .xlsx, .xls, .csv, or .tsv.');
+    const requestId = fileRequest.current[side] + 1;
+    fileRequest.current[side] = requestId;
+
+    if (!ACCEPTED_MIME.has(file.type) && !/\.(xlsx|xls|csv|tsv)$/i.test(file.name)) {
+      setNotice({ tone: 'error', message: 'Unsupported file type. Choose XLSX, XLS, CSV, or TSV.' });
       return;
     }
 
+    setLoading((current) => ({ ...current, [side]: true }));
+    setNotice(null);
+
     try {
-      const arrayBuffer = await file.arrayBuffer();
-      const wb = XLSX.read(arrayBuffer, { type: 'array' });
-      const loaded: LoadedFile = { file, data: wb };
-      setUiError(null);
+      const [arrayBuffer, XLSX] = await Promise.all([
+        file.arrayBuffer(),
+        import('xlsx'),
+      ]);
+      const workbook = XLSX.read(arrayBuffer, {
+        type: 'array',
+        dense: true,
+        cellFormula: false,
+        cellHTML: false,
+        cellStyles: false,
+      });
+
+      if (fileRequest.current[side] !== requestId) return;
+      if (workbook.SheetNames.length === 0) {
+        throw new Error('The workbook has no worksheets.');
+      }
+
+      const loaded: LoadedFile = { file, data: workbook };
       if (side === 'left') {
         setLeft(loaded);
-        setLeftSheet(wb.SheetNames[0]);
+        setLeftSheet(workbook.SheetNames[0]);
         setLeftHeaderLine(1);
       } else {
         setRight(loaded);
-        setRightSheet(wb.SheetNames[0]);
+        setRightSheet(workbook.SheetNames[0]);
         setRightHeaderLine(1);
       }
-    } catch (e) {
-      console.error(e);
-      setUiError('Failed to read spreadsheet. Please verify the file is not corrupted.');
+      invalidateResult();
+    } catch (error) {
+      if (fileRequest.current[side] === requestId) {
+        setNotice({
+          tone: 'error',
+          message: errorMessage(error, 'Could not read this spreadsheet. The file may be damaged or unsupported.'),
+        });
+      }
+    } finally {
+      if (fileRequest.current[side] === requestId) {
+        setLoading((current) => ({ ...current, [side]: false }));
+      }
     }
   };
 
-  const findDifferences = () => {
-    if (!left || !right) return;
-    if (!left.data.SheetNames.includes(leftSheet) || !right.data.SheetNames.includes(rightSheet)) {
-      setUiError('Please select a valid sheet on both sides before comparing.');
-      return;
-    }
-    setUiError(null);
-
-    const result: DiffData = computeDiff({
-      leftWorkbook: left.data,
-      rightWorkbook: right.data,
-      leftSheet,
-      rightSheet,
-      leftHeaderLine,
-      rightHeaderLine,
-    });
-
+  const applyDiff = (result: DiffData) => {
     setTableDiff(result.tableDiff);
     setCsvLeft(result.csvLeft);
     setCsvRight(result.csvRight);
     setActiveTab('table');
     setShowDiff(true);
+  };
 
-    saveDiff({
-      name: `${left.file.name} vs ${right.file.name}`,
-      leftFileName: left.file.name,
-      rightFileName: right.file.name,
-      diffData: result,
-    }).then((saved) => {
-      setSavedDiffs((prev) =>
-        [saved, ...prev.filter((d) => d.id !== saved.id)].sort(
-          (a, b) => b.createdAt - a.createdAt,
-        ),
-      );
-    }).catch(() => {
-      setUiError('Comparison completed, but saving history failed in this browser.');
-    });
+  const findDifferences = async () => {
+    if (!left || !right || isComparing) return;
+    if (!left.data.SheetNames.includes(leftSheet) || !right.data.SheetNames.includes(rightSheet)) {
+      setNotice({ tone: 'error', message: 'Select a valid worksheet on both sides.' });
+      return;
+    }
+
+    setIsComparing(true);
+    setNotice(null);
+
+    try {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      const { computeDiff } = await import('./diff-engine');
+      const result = computeDiff({
+        leftWorkbook: left.data,
+        rightWorkbook: right.data,
+        leftSheet,
+        rightSheet,
+        leftHeaderLine,
+        rightHeaderLine,
+      });
+      applyDiff(result);
+
+      if (result.alignmentLimited) {
+        setNotice({
+          tone: 'info',
+          message: 'These sheets differ heavily, so rows were aligned by position to keep the browser responsive.',
+        });
+      }
+
+      saveDiff({
+        name: `${left.file.name} vs ${right.file.name}`,
+        leftFileName: left.file.name,
+        rightFileName: right.file.name,
+        diffData: result,
+      })
+        .then((saved) => {
+          setSavedDiffs((current) => [saved, ...current.filter((diff) => diff.id !== saved.id)]);
+        })
+        .catch((error) => {
+          setNotice({
+            tone: 'error',
+            message: errorMessage(error, 'Comparison finished, but it could not be saved to local history.'),
+          });
+        });
+    } catch {
+      setNotice({ tone: 'error', message: 'Could not compare these worksheets.' });
+    } finally {
+      setIsComparing(false);
+    }
   };
 
   const loadSavedDiff = async (id: string) => {
-    const rec = await loadDiff(id);
-    if (!rec?.diffData) {
-      setUiError('Saved diff is unavailable.');
-      return;
+    try {
+      const record = await loadDiff(id);
+      if (!record) {
+        setNotice({ tone: 'error', message: 'This saved diff is no longer available.' });
+        return;
+      }
+      applyDiff(record.diffData);
+      setNotice(null);
+    } catch {
+      setNotice({ tone: 'error', message: 'Could not load this saved diff.' });
     }
-    setUiError(null);
-    const data = rec.diffData;
-    setTableDiff(data.tableDiff || null);
-    setCsvLeft(data.csvLeft || []);
-    setCsvRight(data.csvRight || []);
-    setActiveTab('table');
-    setShowDiff(true);
+  };
+
+  const removeSavedDiff = async (id: string) => {
+    try {
+      await deleteDiff(id);
+      setSavedDiffs((current) => current.filter((diff) => diff.id !== id));
+    } catch {
+      setNotice({ tone: 'error', message: 'Could not delete this saved diff.' });
+    }
   };
 
   return (
-    <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', padding: '0.75rem', boxSizing: 'border-box', overflow: 'hidden' }}>
-      {uiError && (
+    <div className={styles.editor}>
+      {notice && (
         <div
-          role="alert"
-          style={{
-            marginBottom: '0.75rem',
-            border: '1px solid rgba(255, 80, 80, 0.5)',
-            backgroundColor: 'rgba(255, 80, 80, 0.08)',
-            color: 'var(--color-text-highlight)',
-            borderRadius: 'var(--border-radius)',
-            padding: '0.5rem 0.75rem',
-            fontSize: '12px',
-            flexShrink: 0,
-          }}
+          className={`${styles.notice} ${notice.tone === 'error' ? styles.noticeError : styles.noticeInfo}`}
+          role={notice.tone === 'error' ? 'alert' : 'status'}
         >
-          {uiError}
+          {notice.message}
         </div>
       )}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1rem', marginBottom: '1rem', flexShrink: 0 }}>
+
+      <div className={styles.uploadGrid}>
         <DropZone
           side="left"
           loadedFile={left}
           inputRef={leftInputRef}
+          isLoading={loading.left}
           onFiles={handleFiles}
-          onClear={() => setLeft(null)}
+          onClear={() => clearSide('left')}
           sheetName={leftSheet}
-          setSheetName={setLeftSheet}
+          setSheetName={(sheet) => {
+            setLeftSheet(sheet);
+            setLeftHeaderLine(1);
+            invalidateResult();
+          }}
           headerLine={leftHeaderLine}
-          setHeaderLine={setLeftHeaderLine}
+          setHeaderLine={(line) => {
+            setLeftHeaderLine(line);
+            invalidateResult();
+          }}
         />
         <DropZone
           side="right"
           loadedFile={right}
           inputRef={rightInputRef}
+          isLoading={loading.right}
           onFiles={handleFiles}
-          onClear={() => setRight(null)}
+          onClear={() => clearSide('right')}
           sheetName={rightSheet}
-          setSheetName={setRightSheet}
+          setSheetName={(sheet) => {
+            setRightSheet(sheet);
+            setRightHeaderLine(1);
+            invalidateResult();
+          }}
           headerLine={rightHeaderLine}
-          setHeaderLine={setRightHeaderLine}
+          setHeaderLine={(line) => {
+            setRightHeaderLine(line);
+            invalidateResult();
+          }}
         />
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem', flexShrink: 0 }}>
+      <div className={styles.actionRow}>
         <button
-          onClick={findDifferences}
-          disabled={!left || !right}
-          style={{ ...commonStyles.button, backgroundColor: 'var(--color-primary)', ...(!left || !right ? commonStyles.buttonDisabled : {}) }}
+          type="button"
+          className={`${styles.button} ${styles.primaryButton}`}
+          onClick={() => void findDifferences()}
+          disabled={!left || !right || isComparing || loading.left || loading.right}
         >
-          Find differences
+          {isComparing ? 'Comparing locally…' : 'Find differences'}
         </button>
       </div>
 
       {showDiff && (
-        <div style={{ display: 'flex', gap: '1.5rem', flex: 1, minHeight: 0, overflow: 'hidden' }}>
-          {/* Saved Diffs Sidebar */}
-          <aside style={{ width: '224px', borderRight: '1px solid var(--color-separator)', paddingRight: '1rem', fontSize: '12px', flexShrink: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <h3 style={{ fontWeight: 600, fontSize: '14px', marginBottom: '1rem', flexShrink: 0 }}>Saved Diffs</h3>
-            <ul style={{ listStyle: 'none', flex: 1, overflow: 'auto', marginRight: '0.5rem' }}>
-              {savedDiffs.map((d) => (
-                <li key={d.id} style={{ position: 'relative', marginBottom: '0.5rem' }}>
-                  <button
-                    onClick={() => loadSavedDiff(d.id)}
-                    style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', textAlign: 'left', width: '100%', paddingRight: '2rem' }}
-                  >
-                    <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--color-text-highlight)' }}>
-                      {d.name}
-                    </span>
-                    <span style={{ fontSize: '10px', color: 'var(--color-text-subdue)' }}>
-                      {new Date(d.createdAt).toLocaleString()}
-                    </span>
-                  </button>
-                  <button
-                    style={{ position: 'absolute', top: '50%', right: '0', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer' }}
-                    onClick={async () => {
-                      await deleteDiff(d.id);
-                      setSavedDiffs((prev) => prev.filter((sd) => sd.id !== d.id));
-                    }}
-                  >
-                    <X size={16} color="var(--color-text-subdue)" />
-                  </button>
-                </li>
-              ))}
-            </ul>
+        <div className={styles.resultsLayout}>
+          <aside className={styles.history} aria-label="Saved diff history">
+            <h2 className={styles.historyTitle}>Saved diffs</h2>
+            {savedDiffs.length === 0 ? (
+              <span className={styles.emptyHistory}>No local history yet.</span>
+            ) : (
+              <ul className={styles.historyList}>
+                {savedDiffs.map((diff) => (
+                  <li key={diff.id} className={styles.historyItem}>
+                    <button
+                      type="button"
+                      className={styles.historyButton}
+                      onClick={() => void loadSavedDiff(diff.id)}
+                    >
+                      <span className={styles.historyName} title={diff.name}>{diff.name}</span>
+                      <time className={styles.historyDate} dateTime={new Date(diff.createdAt).toISOString()}>
+                        {new Date(diff.createdAt).toLocaleString()}
+                      </time>
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.iconButton} ${styles.deleteHistory}`}
+                      onClick={() => void removeSavedDiff(diff.id)}
+                      aria-label={`Delete ${diff.name}`}
+                      title="Delete saved diff"
+                    >
+                      <X size={14} aria-hidden="true" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </aside>
 
-          {/* Diff Result Area */}
-          <section style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
-            <div style={{ display: 'flex', gap: '1rem', borderBottom: '1px solid var(--color-separator)', marginBottom: '1rem', fontSize: '14px', flexShrink: 0 }}>
-              <button
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontWeight: activeTab === 'table' ? 600 : 500,
-                  color: activeTab === 'table' ? 'var(--color-primary)' : 'inherit',
-                  borderBottomWidth: '2px',
-                  borderBottomStyle: 'solid',
-                  borderBottomColor: activeTab === 'table' ? 'var(--color-primary)' : 'transparent',
-                  paddingBottom: '0.5rem',
-                  cursor: 'pointer',
-                }}
-                onClick={() => setActiveTab('table')}
-              >
-                Table
-              </button>
-              <button
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontWeight: activeTab === 'text' ? 600 : 500,
-                  color: activeTab === 'text' ? 'var(--color-primary)' : 'inherit',
-                  borderBottomWidth: '2px',
-                  borderBottomStyle: 'solid',
-                  borderBottomColor: activeTab === 'text' ? 'var(--color-primary)' : 'transparent',
-                  paddingBottom: '0.5rem',
-                  cursor: 'pointer',
-                }}
-                onClick={() => setActiveTab('text')}
-              >
-                Text
-              </button>
+          <section className={styles.diffSection} aria-label="Comparison result">
+            <div className={styles.tabs} role="tablist" aria-label="Result format">
+              {(['table', 'text'] as const).map((tab) => (
+                <button
+                  type="button"
+                  key={tab}
+                  role="tab"
+                  aria-selected={activeTab === tab}
+                  className={`${styles.tab} ${activeTab === tab ? styles.activeTab : ''}`}
+                  onClick={() => setActiveTab(tab)}
+                >
+                  {tab === 'table' ? 'Table' : 'CSV text'}
+                </button>
+              ))}
             </div>
-            <div style={{ flex: 1, overflow: 'hidden' }}>
-              {activeTab === 'table' && tableDiff ? (
-                <TableDiffView tableDiff={tableDiff} />
-              ) : (
-                <TextDiffView csvLeft={csvLeft} csvRight={csvRight} />
-              )}
+            <div className={styles.view}>
+              {activeTab === 'table' && tableDiff
+                ? <TableDiffView tableDiff={tableDiff} />
+                : <TextDiffView csvLeft={csvLeft} csvRight={csvRight} />}
             </div>
           </section>
         </div>

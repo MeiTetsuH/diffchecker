@@ -1,71 +1,131 @@
-        :root {
-            --color-background: hsl(240, 8%, 9%);
-            --color-widget-background: hsl(240, 8%, 10%);
-            --color-widget-background-highlight: hsl(240, 8%, 14%);
-            --color-separator: hsl(240, 8%, 13%);
-            --color-widget-content-border: hsl(240, 8%, 13%);
-            --color-primary: hsl(43, 50%, 70%);
-            --color-text-highlight: hsl(240, 8%, 85%);
-            --color-text-base: hsl(240, 8%, 58%);
-            --color-text-subdue: hsl(240, 8%, 35%);
-            --border-radius: 5px;
-            --font-family: 'JetBrains Mono', monospace;
-        }
+:root {
+  color-scheme: dark;
+  --color-background: hsl(240 8% 9%);
+  --color-widget-background: hsl(240 8% 10%);
+  --color-widget-background-highlight: hsl(240 8% 14%);
+  --color-separator: hsl(240 8% 18%);
+  --color-widget-content-border: hsl(240 8% 18%);
+  --color-primary: hsl(43 50% 70%);
+  --color-primary-muted: hsl(43 35% 18%);
+  --color-text-highlight: hsl(240 8% 88%);
+  --color-text-base: hsl(240 8% 62%);
+  --color-text-subdue: hsl(240 8% 44%);
+  --color-danger: hsl(2 70% 68%);
+  --color-danger-muted: hsl(2 55% 16% / 0.7);
+  --color-added: hsl(142 52% 62%);
+  --color-added-muted: hsl(142 45% 18% / 0.72);
+  --border-radius: 5px;
+  --font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+}
 
-        @media (prefers-color-scheme: light) {
-            :root {
-                --color-background: hsl(0, 0%, 98%);
-                --color-widget-background: hsl(0, 0%, 100%);
-                --color-widget-background-highlight: hsl(0, 0%, 96%);
-                --color-separator: hsl(0, 0%, 90%);
-                --color-widget-content-border: hsl(0, 0%, 85%);
-                --color-primary: hsl(43, 70%, 55%);
-                --color-text-highlight: hsl(0, 0%, 10%);
-                --color-text-base: hsl(0, 0%, 40%);
-                --color-text-subdue: hsl(0, 0%, 65%);
-            }
-        }
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: light;
+    --color-background: hsl(0 0% 97%);
+    --color-widget-background: hsl(0 0% 100%);
+    --color-widget-background-highlight: hsl(0 0% 95%);
+    --color-separator: hsl(0 0% 86%);
+    --color-widget-content-border: hsl(0 0% 84%);
+    --color-primary: hsl(43 70% 43%);
+    --color-primary-muted: hsl(43 75% 91%);
+    --color-text-highlight: hsl(0 0% 12%);
+    --color-text-base: hsl(0 0% 38%);
+    --color-text-subdue: hsl(0 0% 58%);
+    --color-danger: hsl(2 62% 44%);
+    --color-danger-muted: hsl(2 72% 95%);
+    --color-added: hsl(142 52% 34%);
+    --color-added-muted: hsl(142 55% 93%);
+  }
+}
 
+* {
+  box-sizing: border-box;
+}
 
-        body.light-theme {
-            --color-background: hsl(0, 0%, 98%);
-            --color-widget-background: hsl(0, 0%, 100%);
-            --color-widget-background-highlight: hsl(0, 0%, 96%);
-            --color-separator: hsl(0, 0%, 90%);
-            --color-widget-content-border: hsl(0, 0%, 85%);
-            --color-primary: hsl(43, 70%, 55%);
-            --color-text-highlight: hsl(0, 0%, 10%);
-            --color-text-base: hsl(0, 0%, 40%);
-            --color-text-subdue: hsl(0, 0%, 65%);
-        }
+html,
+body {
+  height: 100%;
+}
 
-        body.dark-theme {
-            --color-background: hsl(240, 8%, 9%);
-            --color-widget-background: hsl(240, 8%, 10%);
-            --color-widget-background-highlight: hsl(240, 8%, 14%);
-            --color-separator: hsl(240, 8%, 13%);
-            --color-widget-content-border: hsl(240, 8%, 13%);
-            --color-primary: hsl(43, 50%, 70%);
-            --color-text-highlight: hsl(240, 8%, 85%);
-            --color-text-base: hsl(240, 8%, 58%);
-            --color-text-subdue: hsl(240, 8%, 35%);
-        }
+body {
+  margin: 0;
+  min-width: 320px;
+  overflow: hidden;
+  background: var(--color-background);
+  color: var(--color-text-base);
+  font-family: var(--font-family);
+  font-size: 14px;
+  line-height: 1.5;
+}
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
 
-        html,
-        body {
-            height: 100%;
-            overflow: hidden;
-        }
+button,
+select {
+  touch-action: manipulation;
+}
 
-        body {
-            font-family: var(--font-family);
-            background-color: var(--color-background);
-            color: var(--color-text-base);
-            font-size: 14px;
-        }
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--color-primary-muted);
+  color: var(--color-text-highlight);
+}
+
+.app-shell {
+  display: flex;
+  height: 100dvh;
+  min-height: 0;
+  flex-direction: column;
+  background: var(--color-background);
+}
+
+.app-content {
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.privacy-notice {
+  display: flex;
+  min-height: 32px;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--color-separator);
+  background: color-mix(in srgb, var(--color-primary-muted) 56%, var(--color-widget-background));
+  color: var(--color-text-base);
+  font-size: 11px;
+}
+
+.privacy-notice::before {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--color-added);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-added) 18%, transparent);
+  content: "";
+}
+
+.route-loading {
+  display: grid;
+  height: 100%;
+  place-items: center;
+  color: var(--color-text-subdue);
+  font-size: 11px;
+}
+
+@media (max-width: 600px) {
+  .privacy-notice {
+    padding-inline: 12px;
+  }
+}

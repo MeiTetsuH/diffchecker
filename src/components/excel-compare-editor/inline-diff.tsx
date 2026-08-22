@@ -1,7 +1,8 @@
 'use client';
 
 import React from 'react';
-import { diffChars } from 'diff';
+import { diffChars, type Change } from 'diff';
+import styles from './styles.module.css';
 
 type DiffSide = 'left' | 'right';
 
@@ -16,7 +17,10 @@ export function renderInlineDiff(
 ): React.ReactNode {
   const leftText = toText(leftValue);
   const rightText = toText(rightValue);
-  const parts = diffChars(leftText, rightText);
+  const parts = diffChars(leftText, rightText, { maxEditLength: 2_000 }) ?? [
+    ...(leftText ? [{ value: leftText, removed: true, added: false, count: leftText.length } satisfies Change] : []),
+    ...(rightText ? [{ value: rightText, removed: false, added: true, count: rightText.length } satisfies Change] : []),
+  ];
 
   return parts.map((part, index) => {
     if (side === 'left' && part.added) return null;
@@ -24,29 +28,14 @@ export function renderInlineDiff(
 
     if (part.removed) {
       return (
-        <span
-          key={index}
-          style={{
-            backgroundColor: 'rgba(255, 0, 0, 0.2)',
-            textDecoration: 'line-through',
-            borderRadius: '3px',
-            padding: '0 1px',
-          }}
-        >
+        <span key={index} className={styles.inlineRemoved}>
           {part.value}
         </span>
       );
     }
     if (part.added) {
       return (
-        <span
-          key={index}
-          style={{
-            backgroundColor: 'rgba(0, 255, 0, 0.2)',
-            borderRadius: '3px',
-            padding: '0 1px',
-          }}
-        >
+        <span key={index} className={styles.inlineAdded}>
           {part.value}
         </span>
       );

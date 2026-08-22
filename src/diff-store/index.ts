@@ -1,215 +1,224 @@
-import type { SavedDiff, SavedDiffDTO } from './types';
-
-/**
- * IndexedDB storage layer for saved diffs.
- *
- * Uses native IndexedDB API with a lazy-initialized singleton connection.
- * Fully SSR-safe: all operations bail early when `window` is unavailable.
- */
+import type { DiffData } from '@/types/excel-diff';
+import type { SavedDiff, SavedDiffDTO, SavedDiffSummary } from './types';
 
 const DB_NAME = 'diffchecker-guest';
-const DB_VERSION = 1;
-const STORE_NAME = 'diffs';
+const DB_VERSION = 2;
+const SUMMARY_STORE = 'diffs';
+const CONTENT_STORE = 'diff-content';
 const MAX_DIFFS = 100;
-
-// ---------------------------------------------------------------------------
-// Lazy singleton DB connection
-// ---------------------------------------------------------------------------
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
+function requestResult<T>(request: IDBRequest<T>): Promise<T> {
+  return new Promise((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error ?? new Error('IndexedDB request failed.'));
+  });
+}
+
+function transactionComplete(transaction: IDBTransaction): Promise<void> {
+  return new Promise((resolve, reject) => {
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error ?? new Error('IndexedDB transaction failed.'));
+    transaction.onabort = () => reject(transaction.error ?? new Error('IndexedDB transaction was aborted.'));
+  });
+}
+
+function migrateVersionOne(
+  transaction: IDBTransaction,
+  contentStore: IDBObjectStore,
+): void {
+  const summaryStore = transaction.objectStore(SUMMARY_STORE);
+  const cursorRequest = summaryStore.openCursor();
+
+  cursorRequest.onsuccess = () => {
+    const cursor = cursorRequest.result;
+    if (!cursor) return;
+
+    const legacy = cursor.value as SavedDiff;
+    if (legacy.diffData) {
+      const { diffData, ...summary } = legacy;
+      contentStore.put(diffData, legacy.id);
+      cursor.update(summary);
+    }
+    cursor.continue();
+  };
+}
+
 function getDB(): Promise<IDBDatabase> {
-  if (typeof window === 'undefined') {
-    return Promise.reject(new Error('IndexedDB is not available on the server.'));
+  if (typeof window === 'undefined' || !('indexedDB' in window)) {
+    return Promise.reject(new Error('Local diff history is not supported in this browser.'));
   }
 
   if (dbPromise) return dbPromise;
 
   dbPromise = new Promise<IDBDatabase>((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
+    let openingFailed = false;
 
-    request.onupgradeneeded = () => {
+    request.onupgradeneeded = (event) => {
       const db = request.result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
-        store.createIndex('idx_createdAt', 'createdAt', { unique: false });
-        store.createIndex('idx_name', 'name', { unique: false });
+      const oldVersion = event.oldVersion;
+
+      if (!db.objectStoreNames.contains(SUMMARY_STORE)) {
+        const summaryStore = db.createObjectStore(SUMMARY_STORE, { keyPath: 'id' });
+        summaryStore.createIndex('idx_createdAt', 'createdAt', { unique: false });
+        summaryStore.createIndex('idx_name', 'name', { unique: false });
+      }
+
+      if (!db.objectStoreNames.contains(CONTENT_STORE)) {
+        const contentStore = db.createObjectStore(CONTENT_STORE);
+        if (oldVersion === 1 && request.transaction) {
+          migrateVersionOne(request.transaction, contentStore);
+        }
       }
     };
 
-    request.onsuccess = () => resolve(request.result);
+    request.onsuccess = () => {
+      const db = request.result;
+      if (openingFailed) {
+        db.close();
+        return;
+      }
+      db.onversionchange = () => {
+        db.close();
+        dbPromise = null;
+      };
+      resolve(db);
+    };
     request.onerror = () => {
-      dbPromise = null; // allow retry on next call
-      reject(request.error);
+      openingFailed = true;
+      dbPromise = null;
+      reject(request.error ?? new Error('Failed to open local diff history.'));
+    };
+    request.onblocked = () => {
+      openingFailed = true;
+      dbPromise = null;
+      reject(new Error('Close other DiffChecker tabs to update local history.'));
     };
   });
 
   return dbPromise;
 }
 
-// ---------------------------------------------------------------------------
-// Low-level helpers
-// ---------------------------------------------------------------------------
-
-function tx(
-  db: IDBDatabase,
-  mode: IDBTransactionMode,
-): IDBObjectStore {
-  return db.transaction(STORE_NAME, mode).objectStore(STORE_NAME);
-}
-
-function wrap<T>(request: IDBRequest<T>): Promise<T> {
-  return new Promise((resolve, reject) => {
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-}
-
-function wrapTransaction(txn: IDBTransaction): Promise<void> {
-  return new Promise((resolve, reject) => {
-    txn.oncomplete = () => resolve();
-    txn.onerror = () => reject(txn.error);
-    txn.onabort = () => reject(txn.error ?? new Error('Transaction aborted'));
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Quota management
-// ---------------------------------------------------------------------------
-
 async function enforceQuota(db: IDBDatabase): Promise<void> {
-  const store = tx(db, 'readonly');
-  const all = await wrap<SavedDiff[]>(store.index('idx_createdAt').getAll());
+  const readTransaction = db.transaction(SUMMARY_STORE, 'readonly');
+  const summaries = await requestResult<SavedDiffSummary[]>(
+    readTransaction.objectStore(SUMMARY_STORE).index('idx_createdAt').getAll(),
+  );
 
-  if (all.length <= MAX_DIFFS) return;
+  if (summaries.length <= MAX_DIFFS) return;
 
-  // `all` is sorted by createdAt ascending (index order)
-  const toDelete = all.slice(0, all.length - MAX_DIFFS);
-  const writeStore = tx(db, 'readwrite');
+  const expired = summaries.slice(0, summaries.length - MAX_DIFFS);
+  const writeTransaction = db.transaction([SUMMARY_STORE, CONTENT_STORE], 'readwrite');
+  const completion = transactionComplete(writeTransaction);
+  const summaryStore = writeTransaction.objectStore(SUMMARY_STORE);
+  const contentStore = writeTransaction.objectStore(CONTENT_STORE);
 
-  for (const record of toDelete) {
-    writeStore.delete(record.id);
+  for (const record of expired) {
+    summaryStore.delete(record.id);
+    contentStore.delete(record.id);
   }
-
-  await wrapTransaction(writeStore.transaction);
+  await completion;
 }
 
-// ---------------------------------------------------------------------------
-// Error handling
-// ---------------------------------------------------------------------------
+export async function saveDiff(dto: SavedDiffDTO): Promise<SavedDiffSummary> {
+  const db = await getDB();
+  const { diffData, ...metadata } = dto;
+  const summary: SavedDiffSummary = {
+    ...metadata,
+    id: crypto.randomUUID(),
+    createdAt: Date.now(),
+  };
 
-function handleError(err: unknown): void {
-  const msg = err instanceof Error ? err.message : String(err);
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('diff-storage-error', { detail: msg }));
-  }
-  console.error('diff-store error', err);
-}
-
-// ---------------------------------------------------------------------------
-// Public API
-// ---------------------------------------------------------------------------
-
-export async function saveDiff(dto: SavedDiffDTO): Promise<SavedDiff> {
-  try {
-    const db = await getDB();
-    const record: SavedDiff = {
-      ...dto,
-      id: crypto.randomUUID(),
-      createdAt: Date.now(),
-    };
-
-    const store = tx(db, 'readwrite');
-    await wrap(store.put(record));
-    await enforceQuota(db);
-    return record;
-  } catch (e) {
-    handleError(e);
-    throw e;
-  }
+  const transaction = db.transaction([SUMMARY_STORE, CONTENT_STORE], 'readwrite');
+  const completion = transactionComplete(transaction);
+  transaction.objectStore(SUMMARY_STORE).put(summary);
+  transaction.objectStore(CONTENT_STORE).put(diffData, summary.id);
+  await completion;
+  await enforceQuota(db);
+  return summary;
 }
 
 export async function loadDiff(id: string): Promise<SavedDiff | null> {
-  try {
-    const db = await getDB();
-    const store = tx(db, 'readonly');
-    const result = await wrap<SavedDiff | undefined>(store.get(id));
-    return result ?? null;
-  } catch (e) {
-    handleError(e);
-    return null;
-  }
+  const db = await getDB();
+  const transaction = db.transaction([SUMMARY_STORE, CONTENT_STORE], 'readonly');
+  const summaryRequest = transaction.objectStore(SUMMARY_STORE).get(id);
+  const contentRequest = transaction.objectStore(CONTENT_STORE).get(id);
+  const [summary, diffData] = await Promise.all([
+    requestResult<SavedDiffSummary | undefined>(summaryRequest),
+    requestResult<DiffData | undefined>(contentRequest),
+  ]);
+
+  return summary && diffData ? { ...summary, diffData } : null;
 }
 
-export async function getAllDiffs(): Promise<SavedDiff[]> {
-  try {
-    const db = await getDB();
-    const store = tx(db, 'readonly');
-    return await wrap<SavedDiff[]>(store.getAll());
-  } catch (e) {
-    handleError(e);
-    return [];
-  }
+export async function getAllDiffs(): Promise<SavedDiffSummary[]> {
+  const db = await getDB();
+  const transaction = db.transaction(SUMMARY_STORE, 'readonly');
+  return requestResult<SavedDiffSummary[]>(
+    transaction.objectStore(SUMMARY_STORE).index('idx_createdAt').getAll(),
+  );
 }
 
 export async function deleteDiff(id: string): Promise<void> {
-  try {
-    const db = await getDB();
-    const store = tx(db, 'readwrite');
-    await wrap(store.delete(id));
-  } catch (e) {
-    handleError(e);
-  }
+  const db = await getDB();
+  const transaction = db.transaction([SUMMARY_STORE, CONTENT_STORE], 'readwrite');
+  const completion = transactionComplete(transaction);
+  transaction.objectStore(SUMMARY_STORE).delete(id);
+  transaction.objectStore(CONTENT_STORE).delete(id);
+  await completion;
 }
 
 export async function updateDiff(
   id: string,
   updates: Partial<SavedDiffDTO>,
 ): Promise<SavedDiff> {
-  try {
-    const db = await getDB();
-    const readStore = tx(db, 'readonly');
-    const existing = await wrap<SavedDiff | undefined>(readStore.get(id));
-    if (!existing) throw new Error('Diff not found');
+  const existing = await loadDiff(id);
+  if (!existing) throw new Error('Diff not found.');
 
-    const updated: SavedDiff = {
-      ...existing,
-      ...updates,
-      updatedAt: Date.now(),
-    };
-
-    const writeStore = tx(db, 'readwrite');
-    await wrap(writeStore.put(updated));
-    return updated;
-  } catch (e) {
-    handleError(e);
-    throw e;
-  }
+  const updated: SavedDiff = {
+    ...existing,
+    ...updates,
+    id,
+    createdAt: existing.createdAt,
+    updatedAt: Date.now(),
+  };
+  const { diffData, ...summary } = updated;
+  const db = await getDB();
+  const transaction = db.transaction([SUMMARY_STORE, CONTENT_STORE], 'readwrite');
+  const completion = transactionComplete(transaction);
+  transaction.objectStore(SUMMARY_STORE).put(summary);
+  transaction.objectStore(CONTENT_STORE).put(diffData, id);
+  await completion;
+  return updated;
 }
 
 export async function exportDiffs(): Promise<SavedDiff[]> {
-  return getAllDiffs();
+  const summaries = await getAllDiffs();
+  const records = await Promise.all(summaries.map((summary) => loadDiff(summary.id)));
+  return records.filter((record): record is SavedDiff => record !== null);
 }
 
 export async function importDiffs(records: SavedDiff[]): Promise<void> {
-  try {
-    const db = await getDB();
-    const store = tx(db, 'readwrite');
+  const db = await getDB();
+  const transaction = db.transaction([SUMMARY_STORE, CONTENT_STORE], 'readwrite');
+  const completion = transactionComplete(transaction);
+  const summaryStore = transaction.objectStore(SUMMARY_STORE);
+  const contentStore = transaction.objectStore(CONTENT_STORE);
 
-    for (const record of records) {
-      store.put(record);
-    }
-
-    await wrapTransaction(store.transaction);
-    await enforceQuota(db);
-  } catch (e) {
-    handleError(e);
+  for (const record of records) {
+    const { diffData, ...summary } = record;
+    summaryStore.put(summary);
+    contentStore.put(diffData, record.id);
   }
+  await completion;
+  await enforceQuota(db);
 }
 
-export async function searchDiffsByName(term: string): Promise<SavedDiff[]> {
-  const q = term.trim().toLowerCase();
-  if (!q) return [];
-  const all = await getAllDiffs();
-  return all.filter((d) => d.name.toLowerCase().includes(q));
+export async function searchDiffsByName(term: string): Promise<SavedDiffSummary[]> {
+  const query = term.trim().toLowerCase();
+  if (!query) return [];
+  const summaries = await getAllDiffs();
+  return summaries.filter((diff) => diff.name.toLowerCase().includes(query));
 }

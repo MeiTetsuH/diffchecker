@@ -4,7 +4,7 @@ import Navigation from "@/components/navigation";
 
 export const metadata: Metadata = {
   title: "DiffChecker",
-  description: "Diffchecker will compare text to find the difference between two text files. Just paste your files and click Find Difference!",
+  description: "Compare text, code, and spreadsheets locally in your browser. Nothing is uploaded.",
 };
 
 export default function RootLayout({
@@ -15,11 +15,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: 'var(--color-background)' }}>
+        <div className="app-shell">
           <Navigation />
-          <div style={{ flexGrow: 1, overflow: 'hidden' }}>
-            {children}
+          <div className="privacy-notice" role="note">
+            Your text, code, and spreadsheets are processed locally in this browser. Nothing is uploaded.
           </div>
+          <main className="app-content">{children}</main>
         </div>
       </body>
     </html>

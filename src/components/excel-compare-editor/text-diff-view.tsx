@@ -1,82 +1,84 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { alignSequences } from '@/lib/sequence-diff';
 import { renderInlineDiff } from './inline-diff';
+import styles from './styles.module.css';
 
 interface TextDiffViewProps {
   csvLeft: string[];
   csvRight: string[];
 }
 
-export const TextDiffView: React.FC<TextDiffViewProps> = ({ csvLeft, csvRight }) => {
-  const maxLines = Math.max(csvLeft.length, csvRight.length);
-  const lines = Array.from({ length: maxLines }, (_, i) => ({
-    left: csvLeft[i],
-    right: csvRight[i],
-  }));
+const LINES_PER_PAGE = 500;
 
-  const { removedCount, addedCount } = useMemo(() => {
-    let added = 0;
-    let removed = 0;
-    lines.forEach((line) => {
-      if (line.left !== line.right) {
-        if (line.left !== undefined) removed++;
-        if (line.right !== undefined) added++;
-      }
-    });
-    return { removedCount: removed, addedCount: added };
-  }, [lines]);
+export function TextDiffView({ csvLeft, csvRight }: TextDiffViewProps) {
+  const [page, setPage] = useState(0);
+  const lines = useMemo(
+    () => alignSequences(csvLeft, csvRight).items,
+    [csvLeft, csvRight],
+  );
+  const pageCount = Math.max(1, Math.ceil(lines.length / LINES_PER_PAGE));
+  const activePage = Math.min(page, pageCount - 1);
+  const firstLine = activePage * LINES_PER_PAGE;
+  const visibleLines = lines.slice(firstLine, firstLine + LINES_PER_PAGE);
+  const { removedCount, addedCount } = useMemo(() => lines.reduce(
+    (counts, line) => ({
+      removedCount: counts.removedCount
+        + (line.left !== line.right && line.left !== undefined ? 1 : 0),
+      addedCount: counts.addedCount
+        + (line.left !== line.right && line.right !== undefined ? 1 : 0),
+    }),
+    { removedCount: 0, addedCount: 0 },
+  ), [lines]);
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', fontSize: '12px', height: '100%' }}>
-      <div style={{ border: '1px solid var(--color-separator)', borderRadius: 'var(--border-radius)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ padding: '0.5rem 0.75rem', backgroundColor: 'rgba(255, 0, 0, 0.05)', borderBottom: '1px solid var(--color-separator)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-          <span style={{ fontWeight: 500, color: 'var(--color-text-highlight)' }}>{removedCount} removals</span>
-          <span style={{ color: 'var(--color-text-subdue)' }}>{csvLeft.length} lines</span>
-        </div>
-        <div style={{ fontFamily: 'var(--font-family)', overflow: 'auto', flex: 1, padding: '0.75rem' }}>
-          {lines.map((line, i) => {
-            return (
-              <div key={i} style={{ display: 'flex' }}>
-                <span style={{ width: '2.5rem', textAlign: 'right', paddingRight: '0.75rem', color: 'var(--color-text-subdue)', userSelect: 'none' }}>
-                  {line.left !== undefined ? i + 1 : ''}
-                </span>
-                <span style={{ flex: 1, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-                  {line.left === undefined
-                    ? ''
-                    : line.right === undefined
-                      ? renderInlineDiff(line.left, '', 'left')
-                      : renderInlineDiff(line.left, line.right, 'left')}
-                </span>
-              </div>
-            );
-          })}
-        </div>
+    <div className={styles.tableView}>
+      <div className={styles.textGrid}>
+        {(['left', 'right'] as const).map((side) => (
+          <section className={styles.textPanel} key={side}>
+            <header className={`${styles.textHeader} ${side === 'left' ? styles.removedHeader : styles.addedHeader}`}>
+              <span>{side === 'left' ? `${removedCount} removals` : `${addedCount} additions`}</span>
+              <span>{side === 'left' ? csvLeft.length : csvRight.length} lines</span>
+            </header>
+            <div className={styles.textScroller}>
+              {visibleLines.map((line, index) => {
+                const lineNumber = side === 'left' ? line.leftIndex : line.rightIndex;
+                const value = side === 'left' ? line.left : line.right;
+                return (
+                  <div className={styles.textLine} key={`${side}-${firstLine + index}`}>
+                    <span className={styles.textLineNumber}>{lineNumber === undefined ? '' : lineNumber + 1}</span>
+                    <span className={styles.textContent}>
+                      {value === undefined ? '' : renderInlineDiff(line.left, line.right, side)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        ))}
       </div>
-      <div style={{ border: '1px solid var(--color-separator)', borderRadius: 'var(--border-radius)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ padding: '0.5rem 0.75rem', backgroundColor: 'rgba(0, 255, 0, 0.05)', borderBottom: '1px solid var(--color-separator)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-          <span style={{ fontWeight: 500, color: 'var(--color-text-highlight)' }}>{addedCount} additions</span>
-          <span style={{ color: 'var(--color-text-subdue)' }}>{csvRight.length} lines</span>
-        </div>
-        <div style={{ fontFamily: 'var(--font-family)', overflow: 'auto', flex: 1, padding: '0.75rem' }}>
-          {lines.map((line, i) => {
-            return (
-              <div key={i} style={{ display: 'flex' }}>
-                <span style={{ width: '2.5rem', textAlign: 'right', paddingRight: '0.75rem', color: 'var(--color-text-subdue)', userSelect: 'none' }}>
-                  {line.right !== undefined ? i + 1 : ''}
-                </span>
-                <span style={{ flex: 1, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-                  {line.right === undefined
-                    ? ''
-                    : line.left === undefined
-                      ? renderInlineDiff('', line.right, 'right')
-                      : renderInlineDiff(line.left, line.right, 'right')}
-                </span>
-              </div>
-            );
-          })}
-        </div>
+      <div className={styles.pagination} aria-label="Text result pages">
+        <span className={styles.pageInfo}>
+          {lines.length === 0 ? 'No lines' : `${firstLine + 1}–${Math.min(firstLine + LINES_PER_PAGE, lines.length)} of ${lines.length}`}
+        </span>
+        <button
+          type="button"
+          className={`${styles.button} ${styles.pageButton}`}
+          disabled={activePage === 0}
+          onClick={() => setPage(Math.max(0, activePage - 1))}
+        >
+          Previous
+        </button>
+        <button
+          type="button"
+          className={`${styles.button} ${styles.pageButton}`}
+          disabled={activePage >= pageCount - 1}
+          onClick={() => setPage(Math.min(pageCount - 1, activePage + 1))}
+        >
+          Next
+        </button>
       </div>
     </div>
   );
-};
+}

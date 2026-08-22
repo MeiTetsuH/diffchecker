@@ -30,4 +30,6 @@ export interface DiffData {
   tableDiff: [DiffHeader, ...DiffRow[]];
   csvLeft: string[];
   csvRight: string[];
+  /** True when extreme edit distance required a bounded positional fallback. */
+  alignmentLimited?: boolean;
 }

@@ -1,104 +1,152 @@
 'use client';
 
-import React, { useState } from 'react';
-import { diffWords, diffChars } from 'diff';
+import { useDeferredValue, useMemo, useState } from 'react';
+import { diffChars, diffWords, type Change } from 'diff';
+import { alignSequences } from '@/lib/sequence-diff';
+import styles from './styles.module.css';
+
+type HighlightMode = 'word' | 'character';
+
+const INITIAL_VISIBLE_LINES = 500;
+
+function fallbackChanges(original: string, changed: string): Change[] {
+  const changes: Change[] = [];
+  if (original) {
+    changes.push({ value: original, removed: true, added: false, count: original.length });
+  }
+  if (changed) {
+    changes.push({ value: changed, removed: false, added: true, count: changed.length });
+  }
+  return changes;
+}
+
+function compareLine(original: string, changed: string, mode: HighlightMode): Change[] {
+  if (original === changed) {
+    return [{ value: original, removed: false, added: false, count: original.length }];
+  }
+
+  const changes = mode === 'word'
+    ? diffWords(original, changed, { maxEditLength: 2_000 })
+    : diffChars(original, changed, { maxEditLength: 2_000 });
+
+  return changes ?? fallbackChanges(original, changed);
+}
+
+function DiffContent({ changes, side }: { changes: Change[]; side: 'left' | 'right' }) {
+  return changes.map((part, index) => {
+    if ((side === 'left' && part.added) || (side === 'right' && part.removed)) return null;
+    const className = part.removed ? styles.removed : part.added ? styles.added : undefined;
+    return <span key={`${index}-${part.value.length}`} className={className}>{part.value}</span>;
+  });
+}
 
 export default function TextCompareEditor() {
   const [originalText, setOriginalText] = useState('');
   const [changedText, setChangedText] = useState('');
-  const [highlightMode, setHighlightMode] = useState('character');
+  const [highlightMode, setHighlightMode] = useState<HighlightMode>('character');
+  const [visibleLines, setVisibleLines] = useState(INITIAL_VISIBLE_LINES);
+  const deferredOriginal = useDeferredValue(originalText);
+  const deferredChanged = useDeferredValue(changedText);
+  const isUpdating = deferredOriginal !== originalText || deferredChanged !== changedText;
 
-  const renderDiff = (original: string, changed: string, showAdded: boolean) => {
-    const diffs = highlightMode === 'word' ? diffWords(original, changed) : diffChars(original, changed);
-    return diffs.map((part, idx) => {
-      const style = {
-        backgroundColor: part.added && showAdded ? 'rgba(0, 255, 0, 0.2)' : part.removed && !showAdded ? 'rgba(255, 0, 0, 0.2)' : 'transparent',
-        color: 'var(--color-text-highlight)',
-        textDecoration: part.removed && !showAdded ? 'line-through' : 'none'
-      };
-      if ((part.added && !showAdded) || (part.removed && showAdded)) {
-        return null;
-      }
-      return <span key={idx} style={style}>{part.value}</span>;
-    });
-  };
-
-  const renderSplitDiff = () => {
-    const originalLines = originalText.split('\n');
-    const changedLines = changedText.split('\n');
-    const maxLines = Math.max(originalLines.length, changedLines.length);
-
-    const lines = Array.from({ length: maxLines }, (_, i) => ({
-      original: originalLines[i] || '',
-      changed: changedLines[i] || '',
-      lineNumber: i + 1
-    }));
-
-    return (
-      <div style={{ display: 'flex', gap: '1rem', flex: 1 }}>
-        <div style={{ flex: 1, backgroundColor: 'var(--color-widget-background-highlight)', borderRadius: 'var(--border-radius)', border: '1px solid var(--color-separator)', overflow: 'hidden' }}>
-          <div style={{ padding: '0.5rem 1rem', borderBottom: '1px solid var(--color-separator)' }}>
-            <span style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-text-highlight)' }}>Original</span>
-          </div>
-          <div style={{ padding: '1rem', fontFamily: 'var(--font-family)', fontSize: '0.875rem', overflow: 'auto', maxHeight: '600px' }}>
-            {lines.map((line, index) => (
-              <div key={index} style={{ display: 'flex', padding: '0.125rem 0' }}>
-                <span style={{ width: '3rem', textAlign: 'right', paddingRight: '1rem', color: 'var(--color-text-subdue)', userSelect: 'none', fontSize: '0.75rem' }}>
-                  {line.lineNumber}
-                </span>
-                <span style={{ flex: 1 }}>{renderDiff(line.original, line.changed, false)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div style={{ flex: 1, backgroundColor: 'var(--color-widget-background-highlight)', borderRadius: 'var(--border-radius)', border: '1px solid var(--color-separator)', overflow: 'hidden' }}>
-          <div style={{ padding: '0.5rem 1rem', borderBottom: '1px solid var(--color-separator)' }}>
-            <span style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-text-highlight)' }}>Changed</span>
-          </div>
-          <div style={{ padding: '1rem', fontFamily: 'var(--font-family)', fontSize: '0.875rem', overflow: 'auto', maxHeight: '600px' }}>
-            {lines.map((line, index) => (
-              <div key={index} style={{ display: 'flex', padding: '0.125rem 0' }}>
-                <span style={{ width: '3rem', textAlign: 'right', paddingRight: '1rem', color: 'var(--color-text-subdue)', userSelect: 'none', fontSize: '0.75rem' }}>
-                  {line.lineNumber}
-                </span>
-                <span style={{ flex: 1 }}>{renderDiff(line.original, line.changed, true)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  };
+  const originalLines = useMemo(() => deferredOriginal.split('\n'), [deferredOriginal]);
+  const changedLines = useMemo(() => deferredChanged.split('\n'), [deferredChanged]);
+  const lines = useMemo(
+    () => alignSequences(originalLines, changedLines).items,
+    [changedLines, originalLines],
+  );
+  const visible = useMemo(
+    () => lines.slice(0, visibleLines).map((line) => ({
+      ...line,
+      changes: compareLine(line.left ?? '', line.right ?? '', highlightMode),
+    })),
+    [highlightMode, lines, visibleLines],
+  );
+  const changedLineCount = useMemo(() => lines.reduce(
+    (count, line) => count + (line.left !== line.right ? 1 : 0),
+    0,
+  ), [lines]);
 
   return (
-    <div style={{ padding: '1rem', height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-        <textarea
-          value={originalText}
-          onChange={(e) => setOriginalText(e.target.value)}
-          style={{ width: '100%', height: '150px', padding: '0.75rem', border: '1px solid var(--color-separator)', borderRadius: 'var(--border-radius)', backgroundColor: 'var(--color-widget-background)', color: 'var(--color-text-highlight)', resize: 'vertical', fontFamily: 'var(--font-family)' }}
-          placeholder="Original Text"
-        />
-        <textarea
-          value={changedText}
-          onChange={(e) => setChangedText(e.target.value)}
-          style={{ width: '100%', height: '150px', padding: '0.75rem', border: '1px solid var(--color-separator)', borderRadius: 'var(--border-radius)', backgroundColor: 'var(--color-widget-background)', color: 'var(--color-text-highlight)', resize: 'vertical', fontFamily: 'var(--font-family)' }}
-          placeholder="Changed Text"
-        />
+    <div className={styles.editor} aria-busy={isUpdating}>
+      <div className={styles.inputs}>
+        <label className={styles.inputGroup}>
+          <span className={styles.label}>Original</span>
+          <textarea
+            value={originalText}
+            onChange={(event) => {
+              setOriginalText(event.target.value);
+              setVisibleLines(INITIAL_VISIBLE_LINES);
+            }}
+            className={styles.textarea}
+            placeholder="Paste original text or code"
+            spellCheck={false}
+          />
+        </label>
+        <label className={styles.inputGroup}>
+          <span className={styles.label}>Changed</span>
+          <textarea
+            value={changedText}
+            onChange={(event) => {
+              setChangedText(event.target.value);
+              setVisibleLines(INITIAL_VISIBLE_LINES);
+            }}
+            className={styles.textarea}
+            placeholder="Paste changed text or code"
+            spellCheck={false}
+          />
+        </label>
       </div>
-      <div style={{ marginBottom: '1rem', display: 'flex', gap: '1rem' }}>
+      <div className={styles.controls}>
         <select
           value={highlightMode}
-          onChange={(e) => setHighlightMode(e.target.value)}
-          style={{ padding: '0.5rem', border: '1px solid var(--color-separator)', borderRadius: 'var(--border-radius)', backgroundColor: 'var(--color-widget-background)', color: 'var(--color-text-highlight)' }}
+          onChange={(event) => setHighlightMode(event.target.value as HighlightMode)}
+          className={styles.select}
+          aria-label="Diff granularity"
         >
-          <option value="word">Word</option>
-          <option value="character">Character</option>
+          <option value="character">Character diff</option>
+          <option value="word">Word diff</option>
         </select>
+        <span className={styles.status} aria-live="polite">
+          {isUpdating ? 'Updating comparison…' : `${changedLineCount} changed ${changedLineCount === 1 ? 'line' : 'lines'}`}
+        </span>
       </div>
-      <div style={{ flex: 1, overflow: 'auto' }}>
-        {(originalText || changedText) && renderSplitDiff()}
-      </div>
+      {(originalText || changedText) && (
+        <div className={styles.results}>
+          {(['left', 'right'] as const).map((side) => (
+            <section className={styles.panel} key={side} aria-label={side === 'left' ? 'Original result' : 'Changed result'}>
+              <header className={styles.panelHeader}>
+                <span className={styles.panelTitle}>{side === 'left' ? 'Original' : 'Changed'}</span>
+                <span className={styles.count}>{side === 'left' ? originalLines.length : changedLines.length} lines</span>
+              </header>
+              <div className={styles.lines}>
+                {visible.map((line, index) => {
+                  const lineIndex = side === 'left' ? line.leftIndex : line.rightIndex;
+                  return (
+                    <div className={styles.line} key={`${side}-${index}`}>
+                      <span className={styles.lineNumber}>{lineIndex === undefined ? '' : lineIndex + 1}</span>
+                      <span className={styles.lineContent}>
+                        <DiffContent changes={line.changes} side={side} />
+                      </span>
+                    </div>
+                  );
+                })}
+                {visibleLines < lines.length && (
+                  <div className={styles.more}>
+                    <button
+                      type="button"
+                      className={styles.moreButton}
+                      onClick={() => setVisibleLines((count) => count + INITIAL_VISIBLE_LINES)}
+                    >
+                      Show more lines
+                    </button>
+                  </div>
+                )}
+              </div>
+            </section>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

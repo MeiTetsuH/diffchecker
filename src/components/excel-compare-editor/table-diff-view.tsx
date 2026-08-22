@@ -1,104 +1,104 @@
 'use client';
 
-import React from 'react';
+import { useMemo, useState } from 'react';
 import type { DiffHeader, DiffRow } from '@/types/excel-diff';
 import { renderInlineDiff } from './inline-diff';
+import styles from './styles.module.css';
 
 interface TableDiffViewProps {
   tableDiff: [DiffHeader, ...DiffRow[]];
 }
 
-export const TableDiffView: React.FC<TableDiffViewProps> = ({ tableDiff }) => {
-  if (!tableDiff || tableDiff.length < 1) return null;
+const ROWS_PER_PAGE = 200;
 
+export function TableDiffView({ tableDiff }: TableDiffViewProps) {
+  const [page, setPage] = useState(0);
   const { headers, headersLeft, headersRight } = tableDiff[0];
   const diffRows = tableDiff.slice(1) as DiffRow[];
-
-  const getHeaderStyle = (h: string): React.CSSProperties => {
-    const onlyInLeft = headersLeft.includes(h) && !headersRight.includes(h);
-    const onlyInRight = !headersLeft.includes(h) && headersRight.includes(h);
-    if (onlyInLeft) return { backgroundColor: 'rgba(255, 0, 0, 0.1)', color: 'var(--color-text-highlight)' };
-    if (onlyInRight) return { backgroundColor: 'rgba(0, 255, 0, 0.1)', color: 'var(--color-text-highlight)' };
-    return { backgroundColor: 'var(--color-widget-background-highlight)' };
-  };
-
-  const getRowStyle = (type: string): React.CSSProperties => {
-    if (type === 'added') return { backgroundColor: 'rgba(0, 255, 0, 0.05)' };
-    if (type === 'removed') return { backgroundColor: 'rgba(255, 0, 0, 0.05)' };
-    return {};
-  };
+  const pageCount = Math.max(1, Math.ceil(diffRows.length / ROWS_PER_PAGE));
+  const activePage = Math.min(page, pageCount - 1);
+  const firstRow = activePage * ROWS_PER_PAGE;
+  const visibleRows = diffRows.slice(firstRow, firstRow + ROWS_PER_PAGE);
+  const leftHeaders = useMemo(() => new Set(headersLeft), [headersLeft]);
+  const rightHeaders = useMemo(() => new Set(headersRight), [headersRight]);
 
   return (
-    <div style={{ height: '100%', overflow: 'auto', fontSize: '12px' }}>
-      <table style={{ minWidth: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-        <thead style={{ position: 'sticky', top: 0 }}>
-          <tr>
-            <th style={{ border: '1px solid var(--color-separator)', padding: '4px 8px', userSelect: 'none', color: 'var(--color-text-subdue)', backgroundColor: 'var(--color-widget-background-highlight)' }}>
-              #
-            </th>
-            {headers.map((h, idx) => (
-              <th key={idx} style={{ border: '1px solid var(--color-separator)', padding: '4px 8px', whiteSpace: 'nowrap', fontWeight: 500, ...getHeaderStyle(h) }}>
-                {h}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {diffRows.map((row, idx) => (
-            <tr key={idx} style={getRowStyle(row.type)}>
-              <td style={{ border: '1px solid var(--color-separator)', padding: '4px 8px', textAlign: 'right', userSelect: 'none', color: 'var(--color-text-subdue)', backgroundColor: 'var(--color-widget-background-highlight)' }}>
-                {idx + 1}
-              </td>
-              {headers.map((h, cIdx) => {
-                const lVal = row.lRow ? row.lRow[h] : undefined;
-                const rVal = row.rRow ? row.rRow[h] : undefined;
-
-                let cellContent: React.ReactNode;
-
-                switch (row.type) {
-                  case 'same':
-                    cellContent = lVal !== undefined ? String(lVal) : '';
-                    break;
-                  case 'added':
-                    cellContent = (
-                      <span style={{ backgroundColor: 'rgba(0, 255, 0, 0.2)', padding: '1px 3px', borderRadius: '3px' }}>
-                        {rVal !== undefined ? String(rVal) : ''}
-                      </span>
-                    );
-                    break;
-                  case 'removed':
-                    cellContent = (
-                      <span style={{ backgroundColor: 'rgba(255, 0, 0, 0.2)', padding: '1px 3px', borderRadius: '3px', textDecoration: 'line-through' }}>
-                        {lVal !== undefined ? String(lVal) : ''}
-                      </span>
-                    );
-                    break;
-                  case 'modified':
-                    if (lVal !== rVal) {
-                      cellContent = (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                          <span>{renderInlineDiff(lVal, rVal, 'left')}</span>
-                          <span>{renderInlineDiff(lVal, rVal, 'right')}</span>
-                        </div>
-                      );
-                    } else {
-                      cellContent = lVal !== undefined ? String(lVal) : '';
-                    }
-                    break;
-                  default:
-                    cellContent = lVal !== undefined ? String(lVal) : '';
-                }
-
+    <div className={styles.tableView}>
+      <div className={styles.tableScroll}>
+        <table className={styles.diffTable}>
+          <thead>
+            <tr>
+              <th className={`${styles.diffHeader} ${styles.lineNumberCell}`}>#</th>
+              {headers.map((header) => {
+                const onlyLeft = leftHeaders.has(header) && !rightHeaders.has(header);
+                const onlyRight = !leftHeaders.has(header) && rightHeaders.has(header);
+                const className = onlyLeft ? styles.headerRemoved : onlyRight ? styles.headerAdded : '';
                 return (
-                  <td key={cIdx} style={{ border: '1px solid var(--color-separator)', padding: '4px 8px', whiteSpace: 'nowrap' }}>
-                    {cellContent}
-                  </td>
+                  <th key={header} className={`${styles.diffHeader} ${className}`}>{header}</th>
                 );
               })}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {visibleRows.map((row, rowIndex) => {
+              const rowClass = row.type === 'added'
+                ? styles.rowAdded
+                : row.type === 'removed'
+                  ? styles.rowRemoved
+                  : '';
+
+              return (
+                <tr key={firstRow + rowIndex} className={rowClass}>
+                  <td className={styles.lineNumberCell}>{firstRow + rowIndex + 1}</td>
+                  {headers.map((header) => {
+                    const leftValue = row.lRow?.[header];
+                    const rightValue = row.rRow?.[header];
+                    let content: React.ReactNode;
+
+                    if (row.type === 'added') {
+                      content = <span className={styles.addedValue}>{rightValue === undefined ? '' : String(rightValue)}</span>;
+                    } else if (row.type === 'removed') {
+                      content = <span className={styles.removedValue}>{leftValue === undefined ? '' : String(leftValue)}</span>;
+                    } else if (row.type === 'modified' && leftValue !== rightValue) {
+                      content = (
+                        <span className={styles.modifiedCell}>
+                          <span className={styles.oldValue}>{renderInlineDiff(leftValue, rightValue, 'left')}</span>
+                          <span className={styles.newValue}>{renderInlineDiff(leftValue, rightValue, 'right')}</span>
+                        </span>
+                      );
+                    } else {
+                      content = leftValue === undefined ? '' : String(leftValue);
+                    }
+
+                    return <td key={header} className={styles.diffCell}>{content}</td>;
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <div className={styles.pagination} aria-label="Table result pages">
+        <span className={styles.pageInfo}>
+          {diffRows.length === 0 ? 'No data rows' : `${firstRow + 1}–${Math.min(firstRow + ROWS_PER_PAGE, diffRows.length)} of ${diffRows.length}`}
+        </span>
+        <button
+          type="button"
+          className={`${styles.button} ${styles.pageButton}`}
+          disabled={activePage === 0}
+          onClick={() => setPage(Math.max(0, activePage - 1))}
+        >
+          Previous
+        </button>
+        <button
+          type="button"
+          className={`${styles.button} ${styles.pageButton}`}
+          disabled={activePage >= pageCount - 1}
+          onClick={() => setPage(Math.min(pageCount - 1, activePage + 1))}
+        >
+          Next
+        </button>
+      </div>
     </div>
   );
-};
+}

@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react';
 import * as XLSX from 'xlsx';
-import { commonStyles } from './styles';
+import styles from './styles.module.css';
 
 interface LoadedFile {
   file: File;
@@ -44,14 +44,13 @@ export const SpreadsheetPreview: React.FC<SpreadsheetPreviewProps> = ({
   };
 
   return (
-    <div style={{ width: '100%', textAlign: 'left' }} onClick={(e) => e.stopPropagation()}>
-      <div style={{ border: '1px solid var(--color-separator)', borderRadius: 'var(--border-radius)', overflow: 'hidden' }}>
-        <div style={{ overflowY: 'auto', maxHeight: '12rem' }}>
-          <table style={{ minWidth: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-            <thead style={{ backgroundColor: 'var(--color-widget-background-highlight)', position: 'sticky', top: 0 }}>
+    <div className={styles.preview}>
+      <div className={styles.tableFrame}>
+          <table className={styles.previewTable}>
+            <thead>
               <tr>
                 {headers.map((h, idx) => (
-                  <th key={idx} style={{ border: '1px solid var(--color-separator)', padding: '4px 8px', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                  <th key={idx} className={styles.previewHeader}>
                     {h || `Column ${idx + 1}`}
                   </th>
                 ))}
@@ -59,9 +58,9 @@ export const SpreadsheetPreview: React.FC<SpreadsheetPreviewProps> = ({
             </thead>
             <tbody>
               {body.map((row, rIdx) => (
-                <tr key={rIdx} style={{ backgroundColor: rIdx % 2 === 0 ? 'transparent' : 'var(--color-widget-background-highlight)' }}>
+                <tr key={rIdx} className={styles.previewRow}>
                   {headers.map((_, cIdx) => (
-                    <td key={cIdx} style={{ border: '1px solid var(--color-separator)', padding: '4px 8px', whiteSpace: 'nowrap' }}>
+                    <td key={cIdx} className={styles.previewCell}>
                       {row[cIdx]}
                     </td>
                   ))}
@@ -69,30 +68,31 @@ export const SpreadsheetPreview: React.FC<SpreadsheetPreviewProps> = ({
               ))}
             </tbody>
           </table>
-        </div>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '12px', marginTop: '8px' }}>
-        <label>Sheet:</label>
-        <select
-          value={sheetName}
-          onChange={(e) => setSheetName(e.target.value)}
-          style={commonStyles.button}
-        >
-          {loaded.data.SheetNames.map((name) => (
-            <option key={name} value={name} style={{ backgroundColor: 'var(--color-background)', color: 'var(--color-text-base)' }}>
-              {name}
-            </option>
-          ))}
-        </select>
-        <label>Header line:</label>
-        <input
-          type="number"
-          min={1}
-          max={maxHeaderLine}
-          value={headerLine}
-          onChange={(e) => handleHeaderLineChange(e.target.value)}
-          style={{ ...commonStyles.button, width: '4rem', padding: '0.5rem' }}
-        />
+      <div className={styles.options}>
+        <label className={styles.field}>
+          <span className={styles.fieldLabel}>Sheet</span>
+          <select
+            value={sheetName}
+            onChange={(event) => setSheetName(event.target.value)}
+            className={styles.select}
+          >
+            {loaded.data.SheetNames.map((name) => (
+              <option key={name} value={name}>{name}</option>
+            ))}
+          </select>
+        </label>
+        <label className={styles.field}>
+          <span className={styles.fieldLabel}>Header line</span>
+          <input
+            type="number"
+            min={1}
+            max={maxHeaderLine}
+            value={headerLine}
+            onChange={(event) => handleHeaderLineChange(event.target.value)}
+            className={styles.numberInput}
+          />
+        </label>
       </div>
     </div>
   );

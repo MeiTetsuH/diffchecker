@@ -4,6 +4,7 @@
  */
 
 import * as XLSX from 'xlsx';
+import { alignSequences } from '@/lib/sequence-diff';
 import type { DiffRow, DiffHeader, DiffData, RowRecord } from '@/types/excel-diff';
 
 export interface DiffInput {
@@ -34,7 +35,7 @@ function toRows(sheet: XLSX.WorkSheet | undefined): CellValue[][] {
 }
 
 function toRowRecord(headers: string[], rowRaw: CellValue[]): RowRecord {
-  const row: RowRecord = {};
+  const row = Object.create(null) as RowRecord;
   for (let i = 0; i < headers.length; i++) {
     row[headers[i]] = rowRaw[i];
   }
@@ -42,12 +43,17 @@ function toRowRecord(headers: string[], rowRaw: CellValue[]): RowRecord {
 }
 
 function normalizeHeaders(headerRow: CellValue[]): string[] {
-  const counts = new Map<string, number>();
+  const used = new Set<string>();
   return headerRow.map((raw, index) => {
     const base = String(raw ?? '').trim() || `Column ${index + 1}`;
-    const count = (counts.get(base) ?? 0) + 1;
-    counts.set(base, count);
-    return count === 1 ? base : `${base} (${count})`;
+    let candidate = base;
+    let suffix = 2;
+    while (used.has(candidate)) {
+      candidate = `${base} (${suffix})`;
+      suffix += 1;
+    }
+    used.add(candidate);
+    return candidate;
   });
 }
 
@@ -55,46 +61,11 @@ function signatureFromRecord(row: RowRecord, headers: string[]): string {
   return headers
     .map((header) => {
       const value = row[header];
-      return value === undefined ? '__UNDEFINED__' : String(value);
+      if (value === undefined) return 'u';
+      const text = String(value);
+      return `v${text.length}:${text}`;
     })
-    .join('\u001f');
-}
-
-function buildLcsMatches(left: string[], right: string[]): Array<[number, number]> {
-  const m = left.length;
-  const n = right.length;
-  const dp: number[][] = Array.from({ length: m + 1 }, () =>
-    Array.from({ length: n + 1 }, () => 0),
-  );
-
-  for (let i = m - 1; i >= 0; i--) {
-    for (let j = n - 1; j >= 0; j--) {
-      if (left[i] === right[j]) {
-        dp[i][j] = dp[i + 1][j + 1] + 1;
-      } else {
-        dp[i][j] = Math.max(dp[i + 1][j], dp[i][j + 1]);
-      }
-    }
-  }
-
-  const matches: Array<[number, number]> = [];
-  let i = 0;
-  let j = 0;
-  while (i < m && j < n) {
-    if (left[i] === right[j]) {
-      matches.push([i, j]);
-      i++;
-      j++;
-      continue;
-    }
-    if (dp[i + 1][j] >= dp[i][j + 1]) {
-      i++;
-    } else {
-      j++;
-    }
-  }
-
-  return matches;
+    .join('');
 }
 
 /**
@@ -121,50 +92,22 @@ export function computeDiff(input: DiffInput): DiffData {
   const rightRecords = rBody.map((row) => toRowRecord(headersRight, row));
   const leftSignatures = leftRecords.map((row) => signatureFromRecord(row, combinedHeaders));
   const rightSignatures = rightRecords.map((row) => signatureFromRecord(row, combinedHeaders));
-  const matches = buildLcsMatches(leftSignatures, rightSignatures);
+  const alignment = alignSequences(leftSignatures, rightSignatures);
 
   const diffRows: DiffRow[] = [];
-  let leftCursor = 0;
-  let rightCursor = 0;
 
-  const pushUnmatchedBlock = (
-    leftEnd: number,
-    rightEnd: number,
-  ) => {
-    const leftBlock = leftEnd - leftCursor;
-    const rightBlock = rightEnd - rightCursor;
-    const pairCount = Math.min(leftBlock, rightBlock);
+  for (const item of alignment.items) {
+    const lRow = item.leftIndex === undefined ? undefined : leftRecords[item.leftIndex];
+    const rRow = item.rightIndex === undefined ? undefined : rightRecords[item.rightIndex];
 
-    for (let i = 0; i < pairCount; i++) {
-      const lRow = leftRecords[leftCursor + i];
-      const rRow = rightRecords[rightCursor + i];
-      const lSig = leftSignatures[leftCursor + i];
-      const rSig = rightSignatures[rightCursor + i];
-      diffRows.push({ type: lSig === rSig ? 'same' : 'modified', lRow, rRow });
+    if (item.leftIndex === undefined) {
+      diffRows.push({ type: 'added', rRow });
+    } else if (item.rightIndex === undefined) {
+      diffRows.push({ type: 'removed', lRow });
+    } else {
+      diffRows.push({ type: item.left === item.right ? 'same' : 'modified', lRow, rRow });
     }
-
-    for (let i = pairCount; i < leftBlock; i++) {
-      diffRows.push({ type: 'removed', lRow: leftRecords[leftCursor + i] });
-    }
-    for (let i = pairCount; i < rightBlock; i++) {
-      diffRows.push({ type: 'added', rRow: rightRecords[rightCursor + i] });
-    }
-
-    leftCursor = leftEnd;
-    rightCursor = rightEnd;
-  };
-
-  for (const [leftMatch, rightMatch] of matches) {
-    pushUnmatchedBlock(leftMatch, rightMatch);
-    diffRows.push({
-      type: 'same',
-      lRow: leftRecords[leftMatch],
-      rRow: rightRecords[rightMatch],
-    });
-    leftCursor = leftMatch + 1;
-    rightCursor = rightMatch + 1;
   }
-  pushUnmatchedBlock(leftRecords.length, rightRecords.length);
 
   const header: DiffHeader = { headers: combinedHeaders, headersLeft, headersRight };
 
@@ -175,5 +118,6 @@ export function computeDiff(input: DiffInput): DiffData {
     tableDiff: [header, ...diffRows],
     csvLeft: lCsv.split('\n'),
     csvRight: rCsv.split('\n'),
+    alignmentLimited: alignment.limited || undefined,
   };
 }

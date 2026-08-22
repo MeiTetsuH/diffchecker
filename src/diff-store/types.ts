@@ -17,6 +17,8 @@ export type SavedDiff = {
   updatedAt?: number;
 };
 
+export type SavedDiffSummary = Omit<SavedDiff, 'diffData'>;
+
 /**
  * Data required to create a new SavedDiff.
  * The id / timestamps are generated automatically.
