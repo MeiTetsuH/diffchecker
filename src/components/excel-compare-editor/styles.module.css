@@ -521,17 +521,24 @@ button.dropZone:hover,
   border-radius: var(--border-radius);
 }
 
+/* Same grid track list as .textRow, with each cell spanning one side's pair of
+   tracks. Sharing the template — and the scroll container's content width — is
+   what keeps the header's centre divider on top of the body's. */
 .textHead {
+  position: sticky;
+  z-index: 1;
+  top: 0;
   display: grid;
-  flex: 0 0 auto;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: 42px minmax(0, 1fr) 42px minmax(0, 1fr);
   border-bottom: 1px solid var(--color-separator);
+  background: var(--color-widget-background);
 }
 
 .textHeadCell {
   display: flex;
   min-height: 34px;
   min-width: 0;
+  grid-column: span 2;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
@@ -556,8 +563,7 @@ button.dropZone:hover,
   min-height: 0;
   flex: 1;
   overflow: auto;
-  padding-block: 6px;
-  scrollbar-gutter: stable;
+  padding-bottom: 6px;
 }
 
 .textRow {

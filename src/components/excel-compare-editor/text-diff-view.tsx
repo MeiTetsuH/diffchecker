@@ -47,20 +47,22 @@ export function TextDiffView({ csvLeft, csvRight, resultVersion }: TextDiffViewP
 
   return (
     <div className={styles.tableView}>
+      {/* One scroll container holding paired rows keeps the two sides aligned
+          when a long line wraps, and scrolls them together. The header lives
+          inside it as a sticky row sharing the same grid, so the divider
+          between the two sides cannot drift out of line with the body's. */}
       <div className={styles.textFrame}>
-        <div className={styles.textHead}>
-          <div className={`${styles.textHeadCell} ${styles.removedHeader}`}>
-            <span>{removedCount} removals</span>
-            <span>{csvLeft.length} lines</span>
-          </div>
-          <div className={`${styles.textHeadCell} ${styles.addedHeader}`}>
-            <span>{addedCount} additions</span>
-            <span>{csvRight.length} lines</span>
-          </div>
-        </div>
-        {/* One scroll container holding paired rows keeps the two sides aligned
-            when a long line wraps, and scrolls them together. */}
         <div className={styles.textBody}>
+          <div className={styles.textHead}>
+            <div className={`${styles.textHeadCell} ${styles.removedHeader}`}>
+              <span>{removedCount} removals</span>
+              <span>{csvLeft.length} lines</span>
+            </div>
+            <div className={`${styles.textHeadCell} ${styles.addedHeader}`}>
+              <span>{addedCount} additions</span>
+              <span>{csvRight.length} lines</span>
+            </div>
+          </div>
           {visibleLines.map((line, index) => (
             <div className={styles.textRow} key={firstLine + index}>
               <span className={styles.textLineNumber}>

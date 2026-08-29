@@ -136,21 +136,23 @@ export default function TextCompareEditor() {
           position. Insertions and deletions may appear shifted.
         </div>
       )}
+      {/* One scroll container holding paired rows: the two sides stay aligned
+          and scroll together even when a long line wraps. The header sits
+          inside it as a sticky row on the same grid, so the divider between
+          the two sides cannot drift out of line with the body's. */}
       {hasInput && (
         <div className={styles.results}>
-          <div className={styles.resultsHead}>
-            <div className={styles.headCell}>
-              <span className={styles.panelTitle}>Original</span>
-              <span className={styles.count}>{originalLines.length} lines</span>
-            </div>
-            <div className={styles.headCell}>
-              <span className={styles.panelTitle}>Changed</span>
-              <span className={styles.count}>{changedLines.length} lines</span>
-            </div>
-          </div>
-          {/* One scroll container holding paired rows: the two sides stay aligned
-              and scroll together even when a long line wraps. */}
           <div className={styles.resultsBody}>
+            <div className={styles.resultsHead}>
+              <div className={styles.headCell}>
+                <span className={styles.panelTitle}>Original</span>
+                <span className={styles.count}>{originalLines.length} lines</span>
+              </div>
+              <div className={styles.headCell}>
+                <span className={styles.panelTitle}>Changed</span>
+                <span className={styles.count}>{changedLines.length} lines</span>
+              </div>
+            </div>
             {visible.map((line, index) => (
               <div className={styles.row} key={index}>
                 <span className={styles.lineNumber}>
