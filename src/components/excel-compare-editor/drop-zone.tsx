@@ -16,6 +16,12 @@ export interface LoadedFile {
   data: WorkBook;
 }
 
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 interface DropZoneProps {
   side: 'left' | 'right';
   loadedFile: LoadedFile | null;
@@ -102,7 +108,7 @@ export function DropZone({
       </button>
       <div className={styles.fileHeader}>
         <p className={styles.fileName} title={loadedFile.file.name}>{loadedFile.file.name}</p>
-        <span className={styles.fileSize}>{(loadedFile.file.size / 1024).toFixed(1)} KB</span>
+        <span className={styles.fileSize}>{formatBytes(loadedFile.file.size)}</span>
       </div>
       <SpreadsheetPreview
         loaded={loadedFile}

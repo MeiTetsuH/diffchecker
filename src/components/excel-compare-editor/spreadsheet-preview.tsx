@@ -29,7 +29,19 @@ export const SpreadsheetPreview: React.FC<SpreadsheetPreviewProps> = ({
     () => (sheet ? (XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false }) as (string | number | boolean)[][]) : []),
     [sheet],
   );
-  const headers = rows[headerLine - 1] || [];
+  // Match the diff engine: columns are counted across the whole sheet, because
+  // data rows regularly run past the labelled header cells.
+  const width = useMemo(
+    () => rows.reduce((widest, row) => Math.max(widest, row.length), 0),
+    [rows],
+  );
+  const columns = useMemo(() => {
+    const headerRow = rows[headerLine - 1] || [];
+    return Array.from({ length: width }, (_, index) => {
+      const label = String(headerRow[index] ?? '').trim();
+      return label || `Column ${index + 1}`;
+    });
+  }, [headerLine, rows, width]);
   const body = rows.slice(headerLine, headerLine + 15);
   const maxHeaderLine = Math.max(rows.length, 1);
 
@@ -49,9 +61,9 @@ export const SpreadsheetPreview: React.FC<SpreadsheetPreviewProps> = ({
           <table className={styles.previewTable}>
             <thead>
               <tr>
-                {headers.map((h, idx) => (
+                {columns.map((label, idx) => (
                   <th key={idx} className={styles.previewHeader}>
-                    {h || `Column ${idx + 1}`}
+                    {label}
                   </th>
                 ))}
               </tr>
@@ -59,11 +71,15 @@ export const SpreadsheetPreview: React.FC<SpreadsheetPreviewProps> = ({
             <tbody>
               {body.map((row, rIdx) => (
                 <tr key={rIdx} className={styles.previewRow}>
-                  {headers.map((_, cIdx) => (
-                    <td key={cIdx} className={styles.previewCell}>
-                      {row[cIdx]}
-                    </td>
-                  ))}
+                  {columns.map((_, cIdx) => {
+                    const cell = row[cIdx];
+                    // React renders booleans as nothing, so stringify first.
+                    return (
+                      <td key={cIdx} className={styles.previewCell}>
+                        {cell === undefined || cell === null ? '' : String(cell)}
+                      </td>
+                    );
+                  })}
                 </tr>
               ))}
             </tbody>

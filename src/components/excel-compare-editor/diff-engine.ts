@@ -34,6 +34,19 @@ function toRows(sheet: XLSX.WorkSheet | undefined): CellValue[][] {
   }) as CellValue[][];
 }
 
+/**
+ * Widest row in the sheet. Data rows regularly run past the labelled header
+ * cells; using only the header row's width would silently drop those columns
+ * from the comparison.
+ */
+export function sheetWidth(rows: CellValue[][]): number {
+  let width = 0;
+  for (const row of rows) {
+    if (row.length > width) width = row.length;
+  }
+  return width;
+}
+
 function toRowRecord(headers: string[], rowRaw: CellValue[]): RowRecord {
   const row = Object.create(null) as RowRecord;
   for (let i = 0; i < headers.length; i++) {
@@ -42,9 +55,16 @@ function toRowRecord(headers: string[], rowRaw: CellValue[]): RowRecord {
   return row;
 }
 
-function normalizeHeaders(headerRow: CellValue[]): string[] {
+/**
+ * Names every column up to `width`, filling in `Column N` for unlabelled ones
+ * and disambiguating duplicates so each column keeps a stable, unique key.
+ */
+export function normalizeHeaders(headerRow: CellValue[], width: number): string[] {
   const used = new Set<string>();
-  return headerRow.map((raw, index) => {
+  const headers: string[] = [];
+
+  for (let index = 0; index < width; index += 1) {
+    const raw = headerRow[index];
     const base = String(raw ?? '').trim() || `Column ${index + 1}`;
     let candidate = base;
     let suffix = 2;
@@ -53,8 +73,10 @@ function normalizeHeaders(headerRow: CellValue[]): string[] {
       suffix += 1;
     }
     used.add(candidate);
-    return candidate;
-  });
+    headers.push(candidate);
+  }
+
+  return headers;
 }
 
 function signatureFromRecord(row: RowRecord, headers: string[]): string {
@@ -81,8 +103,8 @@ export function computeDiff(input: DiffInput): DiffData {
   const leftHeaderLine = clampHeaderLine(input.leftHeaderLine, lRows.length);
   const rightHeaderLine = clampHeaderLine(input.rightHeaderLine, rRows.length);
 
-  const headersLeft = normalizeHeaders(lRows[leftHeaderLine - 1] || []);
-  const headersRight = normalizeHeaders(rRows[rightHeaderLine - 1] || []);
+  const headersLeft = normalizeHeaders(lRows[leftHeaderLine - 1] || [], sheetWidth(lRows));
+  const headersRight = normalizeHeaders(rRows[rightHeaderLine - 1] || [], sheetWidth(rRows));
   const combinedHeaders = Array.from(new Set([...headersLeft, ...headersRight]));
 
   const lBody = lRows.slice(leftHeaderLine);
@@ -111,13 +133,15 @@ export function computeDiff(input: DiffInput): DiffData {
 
   const header: DiffHeader = { headers: combinedHeaders, headersLeft, headersRight };
 
-  const lCsv = lSheet ? XLSX.utils.sheet_to_csv(lSheet) : '';
-  const rCsv = rSheet ? XLSX.utils.sheet_to_csv(rSheet) : '';
+  // `blankrows: false` mirrors toRows() so the CSV tab and the table tab agree
+  // on which source rows exist and therefore on row numbering.
+  const lCsv = lSheet ? XLSX.utils.sheet_to_csv(lSheet, { blankrows: false }) : '';
+  const rCsv = rSheet ? XLSX.utils.sheet_to_csv(rSheet, { blankrows: false }) : '';
 
   return {
     tableDiff: [header, ...diffRows],
-    csvLeft: lCsv.split('\n'),
-    csvRight: rCsv.split('\n'),
+    csvLeft: lCsv ? lCsv.split('\n') : [],
+    csvRight: rCsv ? rCsv.split('\n') : [],
     alignmentLimited: alignment.limited || undefined,
   };
 }

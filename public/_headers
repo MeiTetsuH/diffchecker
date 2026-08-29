@@ -1,3 +1,21 @@
-# https://developers.cloudflare.com/workers/static-assets/headers
+# Cloudflare Pages headers file.
+# https://developers.cloudflare.com/pages/configuration/headers/
+
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: no-referrer
+  Cross-Origin-Opener-Policy: same-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), usb=(), payment=()
+  # connect-src 'self' is what actually enforces the "nothing is uploaded"
+  # promise: same-origin route payloads still load, but no script on the page
+  # can reach an external host. 'unsafe-inline' is required for the bootstrap
+  # script Next.js inlines into every exported page.
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+
+# Content-addressed filenames, safe to cache forever.
 /_next/static/*
   Cache-Control: public,max-age=31536000,immutable
+
+/favicon.ico
+  Cache-Control: public,max-age=86400

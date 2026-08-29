@@ -7,18 +7,32 @@ import styles from './styles.module.css';
 
 interface TableDiffViewProps {
   tableDiff: [DiffHeader, ...DiffRow[]];
+  /** Changes whenever a new result is applied, so pagination can restart. */
+  resultVersion: number;
 }
 
 const ROWS_PER_PAGE = 200;
 
-export function TableDiffView({ tableDiff }: TableDiffViewProps) {
+export function TableDiffView({ tableDiff, resultVersion }: TableDiffViewProps) {
   const [page, setPage] = useState(0);
+  const [seenVersion, setSeenVersion] = useState(resultVersion);
+
+  if (seenVersion !== resultVersion) {
+    setSeenVersion(resultVersion);
+    setPage(0);
+  }
+
   const { headers, headersLeft, headersRight } = tableDiff[0];
-  const diffRows = tableDiff.slice(1) as DiffRow[];
+  // Slicing the full result on every render (including every page click) is a
+  // whole-array copy, so keep it tied to the identity of the diff itself.
+  const diffRows = useMemo(() => tableDiff.slice(1) as DiffRow[], [tableDiff]);
   const pageCount = Math.max(1, Math.ceil(diffRows.length / ROWS_PER_PAGE));
   const activePage = Math.min(page, pageCount - 1);
   const firstRow = activePage * ROWS_PER_PAGE;
-  const visibleRows = diffRows.slice(firstRow, firstRow + ROWS_PER_PAGE);
+  const visibleRows = useMemo(
+    () => diffRows.slice(firstRow, firstRow + ROWS_PER_PAGE),
+    [diffRows, firstRow],
+  );
   const leftHeaders = useMemo(() => new Set(headersLeft), [headersLeft]);
   const rightHeaders = useMemo(() => new Set(headersRight), [headersRight]);
 

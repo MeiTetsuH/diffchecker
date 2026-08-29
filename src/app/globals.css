@@ -15,7 +15,8 @@
   --color-added: hsl(142 52% 62%);
   --color-added-muted: hsl(142 45% 18% / 0.72);
   --border-radius: 5px;
-  --font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+  /* System monospace only -- no webfont is loaded, so name real fallbacks. */
+  --font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
 }
 
 @media (prefers-color-scheme: light) {
@@ -94,38 +95,10 @@ select {
   overflow: hidden;
 }
 
-.privacy-notice {
-  display: flex;
-  min-height: 32px;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 16px;
-  border-bottom: 1px solid var(--color-separator);
-  background: color-mix(in srgb, var(--color-primary-muted) 56%, var(--color-widget-background));
-  color: var(--color-text-base);
-  font-size: 11px;
-}
-
-.privacy-notice::before {
-  width: 7px;
-  height: 7px;
-  flex: 0 0 auto;
-  border-radius: 50%;
-  background: var(--color-added);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-added) 18%, transparent);
-  content: "";
-}
-
 .route-loading {
   display: grid;
   height: 100%;
   place-items: center;
   color: var(--color-text-subdue);
   font-size: 11px;
-}
-
-@media (max-width: 600px) {
-  .privacy-notice {
-    padding-inline: 12px;
-  }
 }

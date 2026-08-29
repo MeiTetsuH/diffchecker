@@ -45,9 +45,62 @@
   color: var(--color-primary);
 }
 
+/* Sits at the far end of the nav bar, styled to read as a status rather than
+   an alert — no fill, no pulsing dot. */
+.privacy {
+  display: inline-flex;
+  min-height: 26px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding: 4px 9px;
+  border: 1px solid var(--color-separator);
+  border-radius: 999px;
+  color: var(--color-text-subdue);
+  font-size: 11px;
+  cursor: default;
+  white-space: nowrap;
+}
+
+.privacy:hover {
+  border-color: color-mix(in srgb, var(--color-added) 40%, var(--color-separator));
+  color: var(--color-text-base);
+}
+
+.privacyIcon {
+  flex: 0 0 auto;
+  color: var(--color-added);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .privacyLabel {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .privacy {
+    padding: 4px 6px;
+  }
+}
+
 @media (max-width: 520px) {
   .navigation {
     min-height: 48px;
+    flex-wrap: wrap;
     gap: 8px;
     padding-inline: 12px;
   }
@@ -57,11 +110,11 @@
     width: 1px;
     height: 1px;
     overflow: hidden;
-    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
   }
 
   .tabs {
-    width: 100%;
+    flex: 1;
   }
 
   .tab {

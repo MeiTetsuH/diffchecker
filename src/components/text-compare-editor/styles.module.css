@@ -8,8 +8,7 @@
   overflow: auto;
 }
 
-.inputs,
-.results {
+.inputs {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 12px;
@@ -71,15 +70,23 @@
   font-size: 11px;
 }
 
-.results {
-  min-height: 260px;
-  flex: 1;
+.limitedNotice {
+  flex: 0 0 auto;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 35%, var(--color-separator));
+  border-radius: var(--border-radius);
+  background: var(--color-primary-muted);
+  color: var(--color-text-highlight);
+  font-size: 11px;
 }
 
-.panel {
+/* Results are one bordered widget: a sticky two-up header over a single
+   scroll container. Pairing both sides inside one row keeps them aligned
+   no matter how a long line wraps, and removes the need to sync scrolling. */
+.results {
   display: flex;
-  min-width: 0;
-  min-height: 0;
+  min-height: 260px;
+  flex: 1;
   flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--color-separator);
@@ -87,16 +94,26 @@
   background: var(--color-widget-background);
 }
 
-.panelHeader {
+.resultsHead {
+  display: grid;
+  flex: 0 0 auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  border-bottom: 1px solid var(--color-separator);
+  background: var(--color-widget-background-highlight);
+}
+
+.headCell {
   display: flex;
   min-height: 38px;
-  flex: 0 0 auto;
+  min-width: 0;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
   padding: 8px 12px;
-  border-bottom: 1px solid var(--color-separator);
-  background: var(--color-widget-background-highlight);
+}
+
+.headCell + .headCell {
+  border-left: 1px solid var(--color-separator);
 }
 
 .count {
@@ -104,7 +121,7 @@
   font-size: 10px;
 }
 
-.lines {
+.resultsBody {
   min-height: 0;
   flex: 1;
   overflow: auto;
@@ -112,15 +129,14 @@
   scrollbar-gutter: stable;
 }
 
-.line {
+.row {
   display: grid;
   min-height: 22px;
-  grid-template-columns: 48px minmax(0, 1fr);
-  align-items: start;
-  padding-right: 12px;
+  grid-template-columns: 48px minmax(0, 1fr) 48px minmax(0, 1fr);
+  align-items: stretch;
 }
 
-.line:hover {
+.row:hover {
   background: var(--color-widget-background-highlight);
 }
 
@@ -133,9 +149,14 @@
   user-select: none;
 }
 
+.rightGutter {
+  border-left: 1px solid var(--color-separator);
+  padding-left: 10px;
+}
+
 .lineContent {
   min-width: 0;
-  padding: 2px 0;
+  padding: 2px 12px 2px 0;
   color: var(--color-text-highlight);
   line-height: 18px;
   overflow-wrap: anywhere;
@@ -170,16 +191,40 @@
 }
 
 @media (max-width: 720px) {
-  .inputs,
-  .results {
+  .inputs {
     grid-template-columns: 1fr;
   }
 
   .results {
     flex: none;
+    min-height: 320px;
   }
 
-  .panel {
-    min-height: 260px;
+  /* Stack the pair vertically but keep both halves inside the same row box,
+     so a wrapped line still cannot push the two sides out of step. */
+  .row {
+    grid-template-columns: 44px minmax(0, 1fr);
+    padding-block: 2px;
+  }
+
+  .row + .row {
+    border-top: 1px solid var(--color-separator);
+  }
+
+  .rightGutter {
+    border-left: 0;
+    padding-left: 0;
+  }
+
+  /* Once the pair is stacked, mark which half is which. Muted on purpose: this
+     is a side indicator, not a change indicator. */
+  .row > *:nth-child(2) {
+    border-left: 2px solid color-mix(in srgb, var(--color-danger) 55%, transparent);
+    padding-left: 6px;
+  }
+
+  .row > *:nth-child(4) {
+    border-left: 2px solid color-mix(in srgb, var(--color-added) 55%, transparent);
+    padding-left: 6px;
   }
 }

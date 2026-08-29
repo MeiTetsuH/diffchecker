@@ -508,17 +508,12 @@ button.dropZone:hover,
   font-size: 10px;
 }
 
-.textGrid {
-  display: grid;
-  height: 100%;
-  min-height: 0;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 10px;
-}
-
-.textPanel {
+/* CSV view: a sticky two-up header over a single scroll container. Pairing both
+   sides inside one row keeps them aligned however a long line wraps, and makes
+   the two sides scroll together. */
+.textFrame {
   display: flex;
-  min-width: 0;
+  height: 100%;
   min-height: 0;
   flex-direction: column;
   overflow: hidden;
@@ -526,17 +521,27 @@ button.dropZone:hover,
   border-radius: var(--border-radius);
 }
 
-.textHeader {
+.textHead {
+  display: grid;
+  flex: 0 0 auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  border-bottom: 1px solid var(--color-separator);
+}
+
+.textHeadCell {
   display: flex;
   min-height: 34px;
-  flex: 0 0 auto;
+  min-width: 0;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   padding: 6px 9px;
-  border-bottom: 1px solid var(--color-separator);
   color: var(--color-text-highlight);
   font-size: 10px;
+}
+
+.textHeadCell + .textHeadCell {
+  border-left: 1px solid var(--color-separator);
 }
 
 .removedHeader {
@@ -547,21 +552,22 @@ button.dropZone:hover,
   background: color-mix(in srgb, var(--color-added-muted) 50%, transparent);
 }
 
-.textScroller {
+.textBody {
   min-height: 0;
   flex: 1;
   overflow: auto;
   padding-block: 6px;
+  scrollbar-gutter: stable;
 }
 
-.textLine {
+.textRow {
   display: grid;
   min-height: 20px;
-  grid-template-columns: 42px minmax(0, 1fr);
-  padding-right: 8px;
+  grid-template-columns: 42px minmax(0, 1fr) 42px minmax(0, 1fr);
+  align-items: stretch;
 }
 
-.textLine:hover {
+.textRow:hover {
   background: var(--color-widget-background-highlight);
 }
 
@@ -573,12 +579,38 @@ button.dropZone:hover,
   user-select: none;
 }
 
+.textRightGutter {
+  border-left: 1px solid var(--color-separator);
+  padding-left: 8px;
+}
+
 .textContent {
   min-width: 0;
+  padding-right: 8px;
   color: var(--color-text-highlight);
   font-size: 10px;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
+}
+
+.panelActive {
+  height: 100%;
+  min-height: 0;
+}
+
+.panelHidden {
+  display: none;
+}
+
+.resultPlaceholder {
+  display: grid;
+  height: 100%;
+  margin: 0;
+  padding: 20px;
+  place-items: center;
+  color: var(--color-text-subdue);
+  font-size: 11px;
+  text-align: center;
 }
 
 @media (max-width: 900px) {
@@ -607,8 +639,7 @@ button.dropZone:hover,
 }
 
 @media (max-width: 720px) {
-  .uploadGrid,
-  .textGrid {
+  .uploadGrid {
     grid-template-columns: 1fr;
   }
 
@@ -616,11 +647,30 @@ button.dropZone:hover,
     height: 230px;
   }
 
-  .textGrid {
-    height: auto;
+  /* Stack the pair vertically but keep both halves inside the same row box, so
+     a wrapped line still cannot push the two sides out of step. */
+  .textRow {
+    grid-template-columns: 36px minmax(0, 1fr);
+    padding-block: 2px;
   }
 
-  .textPanel {
-    min-height: 260px;
+  .textRow + .textRow {
+    border-top: 1px solid var(--color-separator);
+  }
+
+  .textRightGutter {
+    border-left: 0;
+    padding-left: 0;
+  }
+
+  /* Once the pair is stacked, mark which half is which. */
+  .textRow > *:nth-child(2) {
+    border-left: 2px solid color-mix(in srgb, var(--color-danger) 55%, transparent);
+    padding-left: 6px;
+  }
+
+  .textRow > *:nth-child(4) {
+    border-left: 2px solid color-mix(in srgb, var(--color-added) 55%, transparent);
+    padding-left: 6px;
   }
 }

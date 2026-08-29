@@ -8,20 +8,33 @@ import styles from './styles.module.css';
 interface TextDiffViewProps {
   csvLeft: string[];
   csvRight: string[];
+  /** Changes whenever a new result is applied, so pagination can restart. */
+  resultVersion: number;
 }
 
 const LINES_PER_PAGE = 500;
 
-export function TextDiffView({ csvLeft, csvRight }: TextDiffViewProps) {
+export function TextDiffView({ csvLeft, csvRight, resultVersion }: TextDiffViewProps) {
   const [page, setPage] = useState(0);
-  const lines = useMemo(
-    () => alignSequences(csvLeft, csvRight).items,
+  const [seenVersion, setSeenVersion] = useState(resultVersion);
+
+  if (seenVersion !== resultVersion) {
+    setSeenVersion(resultVersion);
+    setPage(0);
+  }
+
+  const alignment = useMemo(
+    () => alignSequences(csvLeft, csvRight),
     [csvLeft, csvRight],
   );
+  const lines = alignment.items;
   const pageCount = Math.max(1, Math.ceil(lines.length / LINES_PER_PAGE));
   const activePage = Math.min(page, pageCount - 1);
   const firstLine = activePage * LINES_PER_PAGE;
-  const visibleLines = lines.slice(firstLine, firstLine + LINES_PER_PAGE);
+  const visibleLines = useMemo(
+    () => lines.slice(firstLine, firstLine + LINES_PER_PAGE),
+    [lines, firstLine],
+  );
   const { removedCount, addedCount } = useMemo(() => lines.reduce(
     (counts, line) => ({
       removedCount: counts.removedCount
@@ -34,29 +47,37 @@ export function TextDiffView({ csvLeft, csvRight }: TextDiffViewProps) {
 
   return (
     <div className={styles.tableView}>
-      <div className={styles.textGrid}>
-        {(['left', 'right'] as const).map((side) => (
-          <section className={styles.textPanel} key={side}>
-            <header className={`${styles.textHeader} ${side === 'left' ? styles.removedHeader : styles.addedHeader}`}>
-              <span>{side === 'left' ? `${removedCount} removals` : `${addedCount} additions`}</span>
-              <span>{side === 'left' ? csvLeft.length : csvRight.length} lines</span>
-            </header>
-            <div className={styles.textScroller}>
-              {visibleLines.map((line, index) => {
-                const lineNumber = side === 'left' ? line.leftIndex : line.rightIndex;
-                const value = side === 'left' ? line.left : line.right;
-                return (
-                  <div className={styles.textLine} key={`${side}-${firstLine + index}`}>
-                    <span className={styles.textLineNumber}>{lineNumber === undefined ? '' : lineNumber + 1}</span>
-                    <span className={styles.textContent}>
-                      {value === undefined ? '' : renderInlineDiff(line.left, line.right, side)}
-                    </span>
-                  </div>
-                );
-              })}
+      <div className={styles.textFrame}>
+        <div className={styles.textHead}>
+          <div className={`${styles.textHeadCell} ${styles.removedHeader}`}>
+            <span>{removedCount} removals</span>
+            <span>{csvLeft.length} lines</span>
+          </div>
+          <div className={`${styles.textHeadCell} ${styles.addedHeader}`}>
+            <span>{addedCount} additions</span>
+            <span>{csvRight.length} lines</span>
+          </div>
+        </div>
+        {/* One scroll container holding paired rows keeps the two sides aligned
+            when a long line wraps, and scrolls them together. */}
+        <div className={styles.textBody}>
+          {visibleLines.map((line, index) => (
+            <div className={styles.textRow} key={firstLine + index}>
+              <span className={styles.textLineNumber}>
+                {line.leftIndex === undefined ? '' : line.leftIndex + 1}
+              </span>
+              <span className={styles.textContent}>
+                {line.left === undefined ? '' : renderInlineDiff(line.left, line.right, 'left')}
+              </span>
+              <span className={`${styles.textLineNumber} ${styles.textRightGutter}`}>
+                {line.rightIndex === undefined ? '' : line.rightIndex + 1}
+              </span>
+              <span className={styles.textContent}>
+                {line.right === undefined ? '' : renderInlineDiff(line.left, line.right, 'right')}
+              </span>
             </div>
-          </section>
-        ))}
+          ))}
+        </div>
       </div>
       <div className={styles.pagination} aria-label="Text result pages">
         <span className={styles.pageInfo}>

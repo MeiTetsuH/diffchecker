@@ -122,14 +122,21 @@ async function enforceQuota(db: IDBDatabase): Promise<void> {
   await completion;
 }
 
-export async function saveDiff(dto: SavedDiffDTO): Promise<SavedDiffSummary> {
+/**
+ * Stores a diff. Pass `replaceId` to overwrite an existing record in place —
+ * re-comparing the same pair of files then refreshes one history entry instead
+ * of appending a duplicate copy of the whole diff on every run.
+ */
+export async function saveDiff(
+  dto: SavedDiffDTO,
+  replaceId?: string,
+): Promise<SavedDiffSummary> {
   const db = await getDB();
   const { diffData, ...metadata } = dto;
-  const summary: SavedDiffSummary = {
-    ...metadata,
-    id: crypto.randomUUID(),
-    createdAt: Date.now(),
-  };
+  const now = Date.now();
+  const summary: SavedDiffSummary = replaceId
+    ? { ...metadata, id: replaceId, createdAt: now, updatedAt: now }
+    : { ...metadata, id: crypto.randomUUID(), createdAt: now };
 
   const transaction = db.transaction([SUMMARY_STORE, CONTENT_STORE], 'readwrite');
   const completion = transactionComplete(transaction);

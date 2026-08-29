@@ -3,8 +3,10 @@ import "./globals.css";
 import Navigation from "@/components/navigation";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://diffchecker.pages.dev"),
   title: "DiffChecker",
   description: "Compare text, code, and spreadsheets locally in your browser. Nothing is uploaded.",
+  alternates: { canonical: "/" },
 };
 
 export default function RootLayout({
@@ -17,9 +19,6 @@ export default function RootLayout({
       <body>
         <div className="app-shell">
           <Navigation />
-          <div className="privacy-notice" role="note">
-            Your text, code, and spreadsheets are processed locally in this browser. Nothing is uploaded.
-          </div>
           <main className="app-content">{children}</main>
         </div>
       </body>
