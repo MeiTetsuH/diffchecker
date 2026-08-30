@@ -212,6 +212,18 @@
     padding-block: 2px;
   }
 
+  /* The header shares the row's track list, so it has to follow it down to two
+     columns; each cell still spans both, which stacks them full-width over the
+     rows they label. */
+  .resultsHead {
+    grid-template-columns: 44px minmax(0, 1fr);
+  }
+
+  .headCell + .headCell {
+    border-top: 1px solid var(--color-separator);
+    border-left: 0;
+  }
+
   .row + .row {
     border-top: 1px solid var(--color-separator);
   }

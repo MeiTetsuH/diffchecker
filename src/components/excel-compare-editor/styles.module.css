@@ -660,6 +660,18 @@ button.dropZone:hover,
     padding-block: 2px;
   }
 
+  /* The header shares the row's track list, so it has to follow it down to two
+     columns; each cell still spans both, which stacks them full-width over the
+     rows they label. */
+  .textHead {
+    grid-template-columns: 36px minmax(0, 1fr);
+  }
+
+  .textHeadCell + .textHeadCell {
+    border-top: 1px solid var(--color-separator);
+    border-left: 0;
+  }
+
   .textRow + .textRow {
     border-top: 1px solid var(--color-separator);
   }
