@@ -3,7 +3,7 @@ import "./globals.css";
 import Navigation from "@/components/navigation";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://diffchecker.pages.dev"),
+  metadataBase: new URL("https://diffchecker-eij.pages.dev"),
   title: "DiffChecker",
   description: "Compare text, code, and spreadsheets locally in your browser. Nothing is uploaded.",
   alternates: { canonical: "/" },
