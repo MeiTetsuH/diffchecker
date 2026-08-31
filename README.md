@@ -20,6 +20,7 @@ In the UI this shows up as the quiet **Local only** badge in the top-right of th
 - **Diff History** — Saves comparisons locally in IndexedDB; re-running the same pair of files updates that entry instead of appending a duplicate
 - **Aligned split view** — Both sides of a row live in a single grid row, so they stay level even when a long line wraps, and scroll together as one surface
 - **Honest degradation** — When two inputs are too different to align exactly, the bounded diff falls back to positional pairing and says so rather than presenting the result as an exact match
+- **Embeddable** — Works standalone or inside a narrow dashboard iframe
 - **Dark / Light Theme** — Follows the system color preference
 
 ## Behaviour worth knowing
@@ -29,6 +30,12 @@ In the UI this shows up as the quiet **Local only** badge in the top-right of th
 - **Value comparison.** Cells are compared as strings, so the number `1` and the text `"1"` count as equal.
 - **File size limit.** Spreadsheets are parsed on the main thread, so files above 25 MB are refused rather than freezing the tab. (Turbopack does not compile web workers under `output: export` — it emits the worker source uncompiled — so off-thread parsing is not available yet.)
 - **Diff bound.** Alignment uses a `maxEditLength` of 2000. Past that the engine pairs rows by position and surfaces a notice.
+- **Embedding.** The CSP restricts framing with `frame-ancestors` rather than
+  blocking it, because this app is embedded in a dashboard iframe. The allowlist
+  currently covers our own origin plus `mingzhe.uk` and its subdomains — add any
+  new embedding host there, in `public/_headers`. There is intentionally no
+  `X-Frame-Options` header: it is all-or-nothing in modern browsers, so a `DENY`
+  there would silently override the allowlist.
 
 ## Tech Stack
 

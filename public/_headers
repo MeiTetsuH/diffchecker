@@ -3,15 +3,20 @@
 
 /*
   X-Content-Type-Options: nosniff
-  X-Frame-Options: DENY
   Referrer-Policy: no-referrer
   Cross-Origin-Opener-Policy: same-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(), usb=(), payment=()
-  # connect-src 'self' is what actually enforces the "nothing is uploaded"
-  # promise: same-origin route payloads still load, but no script on the page
-  # can reach an external host. 'unsafe-inline' is required for the bootstrap
-  # script Next.js inlines into every exported page.
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+  # This app is meant to be embedded in a dashboard iframe as well as visited
+  # directly, so framing is restricted to our own origins rather than blocked.
+  # Add any new host that embeds it to frame-ancestors below. Deliberately no
+  # X-Frame-Options header: it is all-or-nothing (its ALLOW-FROM form is dead in
+  # modern browsers), so DENY there would override this allowlist.
+  #
+  # connect-src 'self' is what enforces the "nothing is uploaded" promise:
+  # same-origin route payloads still load, but no script on the page can reach
+  # an external host. 'unsafe-inline' is required for the bootstrap script
+  # Next.js inlines into every exported page.
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'self' https://mingzhe.uk https://*.mingzhe.uk
 
 # Content-addressed filenames, safe to cache forever.
 /_next/static/*
