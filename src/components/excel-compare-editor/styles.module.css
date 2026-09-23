@@ -58,10 +58,23 @@ button.dropZone {
   cursor: pointer;
 }
 
-button.dropZone:hover,
+/* Keeps drag events on the button itself. Crossing a child otherwise fires
+   dragleave on the zone, and Safari before 26.4 reports no relatedTarget to
+   tell that apart from really leaving, so the highlight flickers off. */
+button.dropZone > * {
+  pointer-events: none;
+}
+
 .dropActive {
   border-color: var(--color-primary);
   background: var(--color-widget-background-highlight);
+}
+
+@media (hover: hover) {
+  button.dropZone:hover {
+    border-color: var(--color-primary);
+    background: var(--color-widget-background-highlight);
+  }
 }
 
 .dropLoaded {
@@ -70,12 +83,23 @@ button.dropZone:hover,
   text-align: left;
 }
 
+/* The zone has a fixed height, so the preview takes whatever is left and the
+   table gives way first — the sheet and header-line controls must stay on
+   screen, above all on phones where the zone is shorter still. */
+.dropLoaded .preview {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
 .dropIcon {
   margin-bottom: 8px;
   color: var(--color-text-subdue);
 }
 
 .dropTitle {
+  display: block;
   margin: 0;
   color: var(--color-text-highlight);
   font-size: 13px;
@@ -83,6 +107,7 @@ button.dropZone:hover,
 }
 
 .dropHint {
+  display: block;
   margin: 3px 0 12px;
   color: var(--color-text-subdue);
   font-size: 11px;
@@ -137,10 +162,12 @@ button.dropZone:hover,
   cursor: pointer;
 }
 
-.iconButton:hover {
-  border-color: var(--color-separator);
-  background: var(--color-widget-background-highlight);
-  color: var(--color-text-highlight);
+@media (hover: hover) {
+  .iconButton:hover {
+    border-color: var(--color-separator);
+    background: var(--color-widget-background-highlight);
+    color: var(--color-text-highlight);
+  }
 }
 
 .clearButton {
@@ -162,9 +189,11 @@ button.dropZone:hover,
   cursor: pointer;
 }
 
-.button:hover:not(:disabled) {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
+@media (hover: hover) {
+  .button:hover:not(:disabled) {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+  }
 }
 
 .button:disabled {
@@ -193,6 +222,7 @@ button.dropZone:hover,
 }
 
 .tableFrame {
+  min-height: 0;
   max-height: 154px;
   overflow: auto;
   border: 1px solid var(--color-separator);
@@ -328,9 +358,11 @@ button.dropZone:hover,
   text-align: left;
 }
 
-.historyButton:hover {
-  border-color: var(--color-separator);
-  background: var(--color-widget-background-highlight);
+@media (hover: hover) {
+  .historyButton:hover {
+    border-color: var(--color-separator);
+    background: var(--color-widget-background-highlight);
+  }
 }
 
 .historyName,
@@ -386,9 +418,11 @@ button.dropZone:hover,
   font-size: 11px;
 }
 
-.tab:hover {
-  background: var(--color-widget-background-highlight);
-  color: var(--color-text-highlight);
+@media (hover: hover) {
+  .tab:hover {
+    background: var(--color-widget-background-highlight);
+    color: var(--color-text-highlight);
+  }
 }
 
 .activeTab {
@@ -432,6 +466,13 @@ button.dropZone:hover,
   user-select: none;
 }
 
+/* The corner is sticky on both axes, so it must sit above the header cells
+   that slide under it sideways and the gutter cells that slide under it
+   vertically; with a plain gutter z-index both would paint over it. */
+.diffHeader.lineNumberCell {
+  z-index: 3;
+}
+
 .rowAdded {
   background: color-mix(in srgb, var(--color-added-muted) 55%, transparent);
 }
@@ -440,12 +481,19 @@ button.dropZone:hover,
   background: color-mix(in srgb, var(--color-danger-muted) 55%, transparent);
 }
 
+/* The muted tones are translucent in dark mode, and these header cells are
+   sticky: layer the tint over an opaque base so scrolled rows cannot show
+   through. */
 .headerRemoved {
-  background: var(--color-danger-muted);
+  background:
+    linear-gradient(var(--color-danger-muted), var(--color-danger-muted)),
+    var(--color-widget-background-highlight);
 }
 
 .headerAdded {
-  background: var(--color-added-muted);
+  background:
+    linear-gradient(var(--color-added-muted), var(--color-added-muted)),
+    var(--color-widget-background-highlight);
 }
 
 .addedValue,
@@ -573,8 +621,10 @@ button.dropZone:hover,
   align-items: stretch;
 }
 
-.textRow:hover {
-  background: var(--color-widget-background-highlight);
+@media (hover: hover) {
+  .textRow:hover {
+    background: var(--color-widget-background-highlight);
+  }
 }
 
 .textLineNumber {
@@ -619,16 +669,26 @@ button.dropZone:hover,
   text-align: center;
 }
 
-@media (max-width: 900px) {
+/* Narrow or short screens — a phone either way round, a small window, a short
+   dashboard iframe. Dividing a fixed viewport there squeezes the results to
+   nothing, so the editor scrolls as one page instead. The results still get a
+   definite height of their own: left to grow to their full length, the table
+   loses its sticky header and pushes the pager thousands of pixels down. */
+@media (max-width: 900px), (max-height: 640px) {
   .editor {
     overflow: auto;
   }
 
   .resultsLayout {
-    min-height: 520px;
+    height: max(360px, calc(100dvh - 80px));
     flex: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .resultsLayout {
+    height: max(520px, calc(100dvh - 80px));
     flex-direction: column;
-    overflow: visible;
   }
 
   .history {
@@ -637,10 +697,6 @@ button.dropZone:hover,
     padding: 0 0 10px;
     border-right: 0;
     border-bottom: 1px solid var(--color-separator);
-  }
-
-  .diffSection {
-    min-height: 360px;
   }
 }
 
@@ -690,5 +746,42 @@ button.dropZone:hover,
   .textRow > *:nth-child(4) {
     border-left: 2px solid color-mix(in srgb, var(--color-added) 55%, transparent);
     padding-left: 6px;
+  }
+}
+
+/* Touch screens. iOS Safari zooms the page into any form control whose text
+   is under 16px, and with the app shell pinned to the viewport it stays
+   zoomed; the small icon and pager buttons also grow toward a tap size. */
+@media (pointer: coarse) {
+  .select,
+  .numberInput {
+    height: 38px;
+    font-size: 16px;
+  }
+
+  .numberInput {
+    width: 80px;
+  }
+
+  .iconButton {
+    width: 38px;
+    height: 38px;
+  }
+
+  .fileHeader {
+    padding-right: 38px;
+  }
+
+  .historyButton {
+    padding-right: 42px;
+  }
+
+  .deleteHistory {
+    top: 3px;
+  }
+
+  .tab,
+  .pageButton {
+    min-height: 38px;
   }
 }

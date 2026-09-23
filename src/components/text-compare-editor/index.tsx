@@ -11,6 +11,17 @@ const INITIAL_VISIBLE_LINES = 500;
 /** Keeps the per-line diff cache from growing without bound on long sessions. */
 const MAX_CACHED_LINES = 4_000;
 
+/**
+ * spellCheck alone only hides the squiggles. On iOS the keyboard would still
+ * capitalise the first letter and autocorrect code as it is typed.
+ */
+const CODE_INPUT_PROPS = {
+  spellCheck: false,
+  autoCapitalize: 'off',
+  autoCorrect: 'off',
+  autoComplete: 'off',
+} as const;
+
 function fallbackChanges(original: string, changed: string): Change[] {
   const changes: Change[] = [];
   if (original) {
@@ -102,7 +113,7 @@ export default function TextCompareEditor() {
             onChange={(event) => setOriginalText(event.target.value)}
             className={styles.textarea}
             placeholder="Paste original text or code"
-            spellCheck={false}
+            {...CODE_INPUT_PROPS}
           />
         </label>
         <label className={styles.inputGroup}>
@@ -112,7 +123,7 @@ export default function TextCompareEditor() {
             onChange={(event) => setChangedText(event.target.value)}
             className={styles.textarea}
             placeholder="Paste changed text or code"
-            spellCheck={false}
+            {...CODE_INPUT_PROPS}
           />
         </label>
       </div>
@@ -146,11 +157,11 @@ export default function TextCompareEditor() {
             <div className={styles.resultsHead}>
               <div className={styles.headCell}>
                 <span className={styles.panelTitle}>Original</span>
-                <span className={styles.count}>{originalLines.length} lines</span>
+                <span className={styles.count}>{originalLines.length} {originalLines.length === 1 ? 'line' : 'lines'}</span>
               </div>
               <div className={styles.headCell}>
                 <span className={styles.panelTitle}>Changed</span>
-                <span className={styles.count}>{changedLines.length} lines</span>
+                <span className={styles.count}>{changedLines.length} {changedLines.length === 1 ? 'line' : 'lines'}</span>
               </div>
             </div>
             {visible.map((line, index) => (

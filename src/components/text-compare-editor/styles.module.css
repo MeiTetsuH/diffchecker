@@ -141,8 +141,10 @@
   align-items: stretch;
 }
 
-.row:hover {
-  background: var(--color-widget-background-highlight);
+@media (hover: hover) {
+  .row:hover {
+    background: var(--color-widget-background-highlight);
+  }
 }
 
 .lineNumber {
@@ -190,9 +192,20 @@
   padding: 10px;
 }
 
-.moreButton:hover {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
+@media (hover: hover) {
+  .moreButton:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+  }
+}
+
+/* iOS Safari zooms the page into any form control whose text is under 16px,
+   and with the app shell pinned to the viewport it stays zoomed. */
+@media (pointer: coarse) {
+  .textarea,
+  .select {
+    font-size: 16px;
+  }
 }
 
 @media (max-width: 720px) {

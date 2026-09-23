@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { alignSequences } from '@/lib/sequence-diff';
 import { renderInlineDiff } from './inline-diff';
 import styles from './styles.module.css';
@@ -14,8 +14,10 @@ interface TextDiffViewProps {
 
 const LINES_PER_PAGE = 500;
 
-export function TextDiffView({ csvLeft, csvRight, resultVersion }: TextDiffViewProps) {
+// Memoised for the same reason as TableDiffView: both tabs stay mounted.
+export const TextDiffView = memo(function TextDiffView({ csvLeft, csvRight, resultVersion }: TextDiffViewProps) {
   const [page, setPage] = useState(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [seenVersion, setSeenVersion] = useState(resultVersion);
 
   if (seenVersion !== resultVersion) {
@@ -45,6 +47,10 @@ export function TextDiffView({ csvLeft, csvRight, resultVersion }: TextDiffViewP
     { removedCount: 0, addedCount: 0 },
   ), [lines]);
 
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = 0;
+  }, [firstLine, lines]);
+
   return (
     <div className={styles.tableView}>
       {/* One scroll container holding paired rows keeps the two sides aligned
@@ -52,15 +58,15 @@ export function TextDiffView({ csvLeft, csvRight, resultVersion }: TextDiffViewP
           inside it as a sticky row sharing the same grid, so the divider
           between the two sides cannot drift out of line with the body's. */}
       <div className={styles.textFrame}>
-        <div className={styles.textBody}>
+        <div className={styles.textBody} ref={scrollRef}>
           <div className={styles.textHead}>
             <div className={`${styles.textHeadCell} ${styles.removedHeader}`}>
-              <span>{removedCount} removals</span>
-              <span>{csvLeft.length} lines</span>
+              <span>{removedCount} {removedCount === 1 ? 'removal' : 'removals'}</span>
+              <span>{csvLeft.length} {csvLeft.length === 1 ? 'line' : 'lines'}</span>
             </div>
             <div className={`${styles.textHeadCell} ${styles.addedHeader}`}>
-              <span>{addedCount} additions</span>
-              <span>{csvRight.length} lines</span>
+              <span>{addedCount} {addedCount === 1 ? 'addition' : 'additions'}</span>
+              <span>{csvRight.length} {csvRight.length === 1 ? 'line' : 'lines'}</span>
             </div>
           </div>
           {visibleLines.map((line, index) => (
@@ -104,4 +110,4 @@ export function TextDiffView({ csvLeft, csvRight, resultVersion }: TextDiffViewP
       </div>
     </div>
   );
-}
+});

@@ -48,6 +48,12 @@ body {
   height: 100%;
 }
 
+/* Stops iOS Safari inflating text when the phone turns to landscape. */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   margin: 0;
   min-width: 320px;

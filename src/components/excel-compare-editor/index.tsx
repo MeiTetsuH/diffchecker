@@ -23,6 +23,43 @@ const ACCEPTED_MIME = new Set([
  */
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
 
+const TEXT_MIME = new Set(['text/csv', 'text/tab-separated-values']);
+
+const LIMITED_ALIGNMENT_MESSAGE =
+  'These sheets differ heavily, so rows were aligned by position to keep the browser responsive.';
+
+/**
+ * Encoding to fall back on when a CSV is not valid UTF-8. Windows Excel still
+ * saves "CSV" in the system code page — Shift_JIS on a Japanese install, GBK
+ * on a Chinese one — and the bytes do not say which, so take the first of the
+ * user's languages that has a legacy code page of its own.
+ */
+function legacyEncoding(): string {
+  for (const tag of navigator.languages ?? [navigator.language]) {
+    const language = tag.toLowerCase();
+    if (language.startsWith('ja')) return 'shift_jis';
+    if (language.startsWith('ko')) return 'euc-kr';
+    if (/^zh-(tw|hk|mo|hant)/.test(language)) return 'big5';
+    if (language.startsWith('zh')) return 'gb18030';
+  }
+  return 'windows-1252';
+}
+
+/**
+ * SheetJS reads BOM-less CSV bytes as Latin-1, which turns any non-ASCII text
+ * into mojibake, so text sheets are decoded here and handed over as a string.
+ */
+function decodeTextSheet(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  if (bytes[0] === 0xff && bytes[1] === 0xfe) return new TextDecoder('utf-16le').decode(bytes);
+  if (bytes[0] === 0xfe && bytes[1] === 0xff) return new TextDecoder('utf-16be').decode(bytes);
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch {
+    return new TextDecoder(legacyEncoding()).decode(bytes);
+  }
+}
+
 type Side = 'left' | 'right';
 type Notice = { tone: 'error' | 'info'; message: string };
 
@@ -100,6 +137,22 @@ export default function ExcelCompareEditor() {
     };
   }, []);
 
+  // A file dropped anywhere but an empty drop zone would otherwise be opened by
+  // the browser in place of the app, discarding both loaded sheets.
+  useEffect(() => {
+    const swallowStrayDrop = (event: DragEvent) => {
+      if (event.defaultPrevented || !event.dataTransfer?.types.includes('Files')) return;
+      event.preventDefault();
+      if (event.type === 'dragover') event.dataTransfer.dropEffect = 'none';
+    };
+    window.addEventListener('dragover', swallowStrayDrop);
+    window.addEventListener('drop', swallowStrayDrop);
+    return () => {
+      window.removeEventListener('dragover', swallowStrayDrop);
+      window.removeEventListener('drop', swallowStrayDrop);
+    };
+  }, []);
+
   const invalidateResult = () => {
     setShowDiff(false);
     setTableDiff(null);
@@ -158,13 +211,16 @@ export default function ExcelCompareEditor() {
         file.arrayBuffer(),
         import('xlsx'),
       ]);
-      const workbook = XLSX.read(arrayBuffer, {
-        type: 'array',
-        dense: true,
-        cellFormula: false,
-        cellHTML: false,
-        cellStyles: false,
-      });
+      const isTextSheet = TEXT_MIME.has(file.type) || /\.(csv|tsv)$/i.test(file.name);
+      const workbook = isTextSheet
+        ? XLSX.read(decodeTextSheet(arrayBuffer), { type: 'string', dense: true })
+        : XLSX.read(arrayBuffer, {
+          type: 'array',
+          dense: true,
+          cellFormula: false,
+          cellHTML: false,
+          cellStyles: false,
+        });
 
       if (fileRequest.current[side] !== requestId) return;
       if (workbook.SheetNames.length === 0) {
@@ -229,10 +285,7 @@ export default function ExcelCompareEditor() {
       applyDiff(result);
 
       if (result.alignmentLimited) {
-        setNotice({
-          tone: 'info',
-          message: 'These sheets differ heavily, so rows were aligned by position to keep the browser responsive.',
-        });
+        setNotice({ tone: 'info', message: LIMITED_ALIGNMENT_MESSAGE });
       }
 
       // Re-running the same pair refreshes its history entry rather than piling
@@ -274,7 +327,9 @@ export default function ExcelCompareEditor() {
         return;
       }
       applyDiff(record.diffData);
-      setNotice(null);
+      setNotice(
+        record.diffData.alignmentLimited ? { tone: 'info', message: LIMITED_ALIGNMENT_MESSAGE } : null,
+      );
     } catch {
       setNotice({ tone: 'error', message: 'Could not load this saved diff.' });
     }

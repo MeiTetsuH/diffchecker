@@ -33,10 +33,12 @@
   transition: border-color 120ms ease, background-color 120ms ease, color 120ms ease;
 }
 
-.tab:hover {
-  border-color: var(--color-separator);
-  background: var(--color-widget-background-highlight);
-  color: var(--color-text-highlight);
+@media (hover: hover) {
+  .tab:hover {
+    border-color: var(--color-separator);
+    background: var(--color-widget-background-highlight);
+    color: var(--color-text-highlight);
+  }
 }
 
 .active {
@@ -63,9 +65,11 @@
   white-space: nowrap;
 }
 
-.privacy:hover {
-  border-color: color-mix(in srgb, var(--color-added) 40%, var(--color-separator));
-  color: var(--color-text-base);
+@media (hover: hover) {
+  .privacy:hover {
+    border-color: color-mix(in srgb, var(--color-added) 40%, var(--color-separator));
+    color: var(--color-text-base);
+  }
 }
 
 .privacyIcon {

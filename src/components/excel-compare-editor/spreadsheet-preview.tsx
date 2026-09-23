@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import * as XLSX from 'xlsx';
 import styles from './styles.module.css';
 
@@ -26,7 +26,7 @@ export const SpreadsheetPreview: React.FC<SpreadsheetPreviewProps> = ({
 }) => {
   const sheet = loaded.data.Sheets[sheetName];
   const rows: (string | number | boolean)[][] = useMemo(
-    () => (sheet ? (XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false }) as (string | number | boolean)[][]) : []),
+    () => (sheet ? (XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false, raw: false }) as (string | number | boolean)[][]) : []),
     [sheet],
   );
   // Match the diff engine: columns are counted across the whole sheet, because
@@ -44,13 +44,14 @@ export const SpreadsheetPreview: React.FC<SpreadsheetPreviewProps> = ({
   }, [headerLine, rows, width]);
   const body = rows.slice(headerLine, headerLine + 15);
   const maxHeaderLine = Math.max(rows.length, 1);
+  // What the user is typing, kept apart from the committed line so the field
+  // can be emptied mid-edit instead of snapping straight back to 1.
+  const [draftHeaderLine, setDraftHeaderLine] = useState<string | null>(null);
 
   const handleHeaderLineChange = (raw: string) => {
+    setDraftHeaderLine(raw);
     const parsed = Number.parseInt(raw, 10);
-    if (!Number.isFinite(parsed)) {
-      setHeaderLine(1);
-      return;
-    }
+    if (!Number.isFinite(parsed)) return;
     const clamped = Math.min(Math.max(parsed, 1), maxHeaderLine);
     setHeaderLine(clamped);
   };
@@ -102,10 +103,12 @@ export const SpreadsheetPreview: React.FC<SpreadsheetPreviewProps> = ({
           <span className={styles.fieldLabel}>Header line</span>
           <input
             type="number"
+            inputMode="numeric"
             min={1}
             max={maxHeaderLine}
-            value={headerLine}
+            value={draftHeaderLine ?? headerLine}
             onChange={(event) => handleHeaderLineChange(event.target.value)}
+            onBlur={() => setDraftHeaderLine(null)}
             className={styles.numberInput}
           />
         </label>

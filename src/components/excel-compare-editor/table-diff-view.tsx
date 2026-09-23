@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import type { DiffHeader, DiffRow } from '@/types/excel-diff';
 import { renderInlineDiff } from './inline-diff';
 import styles from './styles.module.css';
@@ -13,8 +13,11 @@ interface TableDiffViewProps {
 
 const ROWS_PER_PAGE = 200;
 
-export function TableDiffView({ tableDiff, resultVersion }: TableDiffViewProps) {
+// Memoised because both result tabs stay mounted: without it, every state
+// change in the editor (switching tabs included) re-diffs each visible cell.
+export const TableDiffView = memo(function TableDiffView({ tableDiff, resultVersion }: TableDiffViewProps) {
   const [page, setPage] = useState(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [seenVersion, setSeenVersion] = useState(resultVersion);
 
   if (seenVersion !== resultVersion) {
@@ -36,9 +39,15 @@ export function TableDiffView({ tableDiff, resultVersion }: TableDiffViewProps) 
   const leftHeaders = useMemo(() => new Set(headersLeft), [headersLeft]);
   const rightHeaders = useMemo(() => new Set(headersRight), [headersRight]);
 
+  // A new page or result starts at its first row, not wherever the last one
+  // was left scrolled to.
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = 0;
+  }, [firstRow, tableDiff]);
+
   return (
     <div className={styles.tableView}>
-      <div className={styles.tableScroll}>
+      <div className={styles.tableScroll} ref={scrollRef}>
         <table className={styles.diffTable}>
           <thead>
             <tr>
@@ -115,4 +124,4 @@ export function TableDiffView({ tableDiff, resultVersion }: TableDiffViewProps) 
       </div>
     </div>
   );
-}
+});

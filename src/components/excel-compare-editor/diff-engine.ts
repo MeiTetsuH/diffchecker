@@ -26,11 +26,17 @@ function clampHeaderLine(headerLine: number, rowsLength: number): number {
   return parsed;
 }
 
+/**
+ * Cells are read as the text the spreadsheet displays (`raw: false`), the same
+ * text the CSV tab shows. Raw values would render dates as serial numbers,
+ * percentages as fractions, and strip the leading zeros off CSV codes.
+ */
 function toRows(sheet: XLSX.WorkSheet | undefined): CellValue[][] {
   if (!sheet) return [];
   return XLSX.utils.sheet_to_json<CellValue[]>(sheet, {
     header: 1,
     blankrows: false,
+    raw: false,
   }) as CellValue[][];
 }
 

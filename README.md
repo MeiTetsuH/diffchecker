@@ -27,7 +27,8 @@ In the UI this shows up as the quiet **Local only** badge in the top-right of th
 
 - **Column detection.** Column count comes from the widest row in the sheet, not from the header row. Data rows routinely run past the last labelled header cell; unlabelled columns are named `Column N` and are compared like any other. (A narrower rule would silently hide real differences.)
 - **Blank rows.** Both the table view and the CSV view skip blank rows, so row numbering agrees between the two tabs.
-- **Value comparison.** Cells are compared as strings, so the number `1` and the text `"1"` count as equal.
+- **Value comparison.** Cells are compared as the text the spreadsheet displays — the same text the CSV tab shows. The number `1` and the text `"1"` count as equal, dates read as dates rather than serial numbers, and CSV codes such as `007` keep their leading zeros. Two cells holding the same value under different number formats (`1` vs `1.00`) therefore count as different.
+- **CSV encoding.** CSV and TSV files are read as UTF-8 (UTF-16 when they carry a BOM). A file that is not valid UTF-8 — typically one Windows Excel saved in the system code page — is decoded with the legacy encoding of the first of your browser languages that has one (Shift_JIS for Japanese, GB18030 or Big5 for Chinese, EUC-KR for Korean), falling back to Windows-1252.
 - **File size limit.** Spreadsheets are parsed on the main thread, so files above 25 MB are refused rather than freezing the tab. (Turbopack does not compile web workers under `output: export` — it emits the worker source uncompiled — so off-thread parsing is not available yet.)
 - **Diff bound.** Alignment uses a `maxEditLength` of 2000. Past that the engine pairs rows by position and surfaces a notice.
 - **Embedding.** The CSP restricts framing with `frame-ancestors` rather than

@@ -86,8 +86,9 @@ export function DropZone({
           disabled={isLoading}
         >
           <Upload className={styles.dropIcon} size={28} aria-hidden="true" />
-          <p className={styles.dropTitle}>{isLoading ? 'Reading locally…' : `Choose ${label} file`}</p>
-          <p className={styles.dropHint}>XLSX, XLS, CSV, or TSV · never uploaded</p>
+          {/* Spans, not paragraphs: a button only admits phrasing content. */}
+          <span className={styles.dropTitle}>{isLoading ? 'Reading locally…' : `Choose ${label} file`}</span>
+          <span className={styles.dropHint}>XLSX, XLS, CSV, or TSV · never uploaded</span>
           <span className={styles.button}>{isLoading ? 'Please wait' : 'Browse files'}</span>
         </button>
         {input}
