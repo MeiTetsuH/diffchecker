@@ -2,6 +2,7 @@
 
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { alignSequences } from '@/lib/sequence-diff';
+import { createInlineDiffer, INLINE_LIMIT_MESSAGE } from '@/lib/inline-diff';
 import { renderInlineDiff } from './inline-diff';
 import styles from './styles.module.css';
 
@@ -33,10 +34,16 @@ export const TextDiffView = memo(function TextDiffView({ csvLeft, csvRight, resu
   const pageCount = Math.max(1, Math.ceil(lines.length / LINES_PER_PAGE));
   const activePage = Math.min(page, pageCount - 1);
   const firstLine = activePage * LINES_PER_PAGE;
-  const visibleLines = useMemo(
-    () => lines.slice(firstLine, firstLine + LINES_PER_PAGE),
-    [lines, firstLine],
-  );
+  const { visibleLines, highlightLimited } = useMemo(() => {
+    const compare = createInlineDiffer();
+    let highlightLimited = false;
+    const visibleLines = lines.slice(firstLine, firstLine + LINES_PER_PAGE).map((line) => {
+      const result = compare(line.left, line.right);
+      highlightLimited ||= result.limited;
+      return { ...line, changes: result.changes };
+    });
+    return { visibleLines, highlightLimited };
+  }, [lines, firstLine]);
   const { removedCount, addedCount } = useMemo(() => lines.reduce(
     (counts, line) => ({
       removedCount: counts.removedCount
@@ -53,6 +60,14 @@ export const TextDiffView = memo(function TextDiffView({ csvLeft, csvRight, resu
 
   return (
     <div className={styles.tableView}>
+      {alignment.limited && (
+        <div className={`${styles.notice} ${styles.noticeInfo}`} role="status">
+          These CSV lines were paired by position. Insertions and deletions may appear shifted.
+        </div>
+      )}
+      {highlightLimited && (
+        <div className={`${styles.notice} ${styles.noticeInfo}`} role="status">{INLINE_LIMIT_MESSAGE}</div>
+      )}
       {/* One scroll container holding paired rows keeps the two sides aligned
           when a long line wraps, and scrolls them together. The header lives
           inside it as a sticky row sharing the same grid, so the divider
@@ -75,13 +90,13 @@ export const TextDiffView = memo(function TextDiffView({ csvLeft, csvRight, resu
                 {line.leftIndex === undefined ? '' : line.leftIndex + 1}
               </span>
               <span className={styles.textContent}>
-                {line.left === undefined ? '' : renderInlineDiff(line.left, line.right, 'left')}
+                {line.left === undefined ? '' : renderInlineDiff(line.changes, 'left')}
               </span>
               <span className={`${styles.textLineNumber} ${styles.textRightGutter}`}>
                 {line.rightIndex === undefined ? '' : line.rightIndex + 1}
               </span>
               <span className={styles.textContent}>
-                {line.right === undefined ? '' : renderInlineDiff(line.left, line.right, 'right')}
+                {line.right === undefined ? '' : renderInlineDiff(line.changes, 'right')}
               </span>
             </div>
           ))}

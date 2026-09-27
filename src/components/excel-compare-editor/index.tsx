@@ -105,6 +105,7 @@ export default function ExcelCompareEditor() {
   const [isComparing, setIsComparing] = useState(false);
   const [showDiff, setShowDiff] = useState(false);
   const [activeTab, setActiveTab] = useState<'table' | 'text'>('table');
+  const [textVersion, setTextVersion] = useState<number | null>(null);
   const [tableDiff, setTableDiff] = useState<[DiffHeader, ...DiffRow[]] | null>(null);
   const [csvLeft, setCsvLeft] = useState<string[]>([]);
   const [csvRight, setCsvRight] = useState<string[]>([]);
@@ -344,11 +345,16 @@ export default function ExcelCompareEditor() {
     }
   };
 
+  const selectTab = (tab: 'table' | 'text') => {
+    setActiveTab(tab);
+    if (tab === 'text') setTextVersion(resultVersion);
+  };
+
   const onTabKeyDown = (event: React.KeyboardEvent) => {
     if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
     event.preventDefault();
     const next = activeTab === 'table' ? 'text' : 'table';
-    setActiveTab(next);
+    selectTab(next);
     tabRefs.current[next]?.focus();
   };
 
@@ -468,14 +474,14 @@ export default function ExcelCompareEditor() {
                     aria-controls={`result-panel-${tab}`}
                     tabIndex={activeTab === tab ? 0 : -1}
                     className={`${styles.tab} ${activeTab === tab ? styles.activeTab : ''}`}
-                    onClick={() => setActiveTab(tab)}
+                    onClick={() => selectTab(tab)}
                   >
                     {tab === 'table' ? 'Table' : 'CSV text'}
                   </button>
                 ))}
               </div>
-              {/* Both panels stay mounted so switching tabs neither recomputes the
-                  CSV alignment nor throws away the current page. */}
+              {/* Align and highlight CSV only on first use, then keep its
+                  panel mounted to preserve pagination when switching tabs. */}
               <div className={styles.view}>
                 <div
                   id="result-panel-table"
@@ -491,7 +497,9 @@ export default function ExcelCompareEditor() {
                   aria-labelledby="result-tab-text"
                   className={activeTab === 'text' ? styles.panelActive : styles.panelHidden}
                 >
-                  <TextDiffView csvLeft={csvLeft} csvRight={csvRight} resultVersion={resultVersion} />
+                  {textVersion === resultVersion && (
+                    <TextDiffView csvLeft={csvLeft} csvRight={csvRight} resultVersion={resultVersion} />
+                  )}
                 </div>
               </div>
             </>

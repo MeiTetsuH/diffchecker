@@ -1,0 +1,13 @@
+name: release-preview
+region: tokyo
+replicas: 3
+
+cache:
+  enabled: true
+  ttl_seconds: 300
+
+features:
+  csv_preview: true
+  local_history: true
+
+message: "Compare locally"

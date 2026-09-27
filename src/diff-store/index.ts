@@ -2,7 +2,7 @@ import type { DiffData } from '@/types/excel-diff';
 import type { SavedDiff, SavedDiffDTO, SavedDiffSummary } from './types';
 
 const DB_NAME = 'diffchecker-guest';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const SUMMARY_STORE = 'diffs';
 const CONTENT_STORE = 'diff-content';
 const MAX_DIFFS = 100;
@@ -63,7 +63,11 @@ function getDB(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(SUMMARY_STORE)) {
         const summaryStore = db.createObjectStore(SUMMARY_STORE, { keyPath: 'id' });
         summaryStore.createIndex('idx_createdAt', 'createdAt', { unique: false });
-        summaryStore.createIndex('idx_name', 'name', { unique: false });
+      }
+
+      const summaryStore = request.transaction?.objectStore(SUMMARY_STORE);
+      if (summaryStore?.indexNames.contains('idx_name')) {
+        summaryStore.deleteIndex('idx_name');
       }
 
       if (!db.objectStoreNames.contains(CONTENT_STORE)) {
@@ -175,57 +179,4 @@ export async function deleteDiff(id: string): Promise<void> {
   transaction.objectStore(SUMMARY_STORE).delete(id);
   transaction.objectStore(CONTENT_STORE).delete(id);
   await completion;
-}
-
-export async function updateDiff(
-  id: string,
-  updates: Partial<SavedDiffDTO>,
-): Promise<SavedDiff> {
-  const existing = await loadDiff(id);
-  if (!existing) throw new Error('Diff not found.');
-
-  const updated: SavedDiff = {
-    ...existing,
-    ...updates,
-    id,
-    createdAt: existing.createdAt,
-    updatedAt: Date.now(),
-  };
-  const { diffData, ...summary } = updated;
-  const db = await getDB();
-  const transaction = db.transaction([SUMMARY_STORE, CONTENT_STORE], 'readwrite');
-  const completion = transactionComplete(transaction);
-  transaction.objectStore(SUMMARY_STORE).put(summary);
-  transaction.objectStore(CONTENT_STORE).put(diffData, id);
-  await completion;
-  return updated;
-}
-
-export async function exportDiffs(): Promise<SavedDiff[]> {
-  const summaries = await getAllDiffs();
-  const records = await Promise.all(summaries.map((summary) => loadDiff(summary.id)));
-  return records.filter((record): record is SavedDiff => record !== null);
-}
-
-export async function importDiffs(records: SavedDiff[]): Promise<void> {
-  const db = await getDB();
-  const transaction = db.transaction([SUMMARY_STORE, CONTENT_STORE], 'readwrite');
-  const completion = transactionComplete(transaction);
-  const summaryStore = transaction.objectStore(SUMMARY_STORE);
-  const contentStore = transaction.objectStore(CONTENT_STORE);
-
-  for (const record of records) {
-    const { diffData, ...summary } = record;
-    summaryStore.put(summary);
-    contentStore.put(diffData, record.id);
-  }
-  await completion;
-  await enforceQuota(db);
-}
-
-export async function searchDiffsByName(term: string): Promise<SavedDiffSummary[]> {
-  const query = term.trim().toLowerCase();
-  if (!query) return [];
-  const summaries = await getAllDiffs();
-  return summaries.filter((diff) => diff.name.toLowerCase().includes(query));
 }

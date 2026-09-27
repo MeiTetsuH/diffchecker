@@ -4,7 +4,6 @@
   --color-widget-background: hsl(240 8% 10%);
   --color-widget-background-highlight: hsl(240 8% 14%);
   --color-separator: hsl(240 8% 18%);
-  --color-widget-content-border: hsl(240 8% 18%);
   --color-primary: hsl(43 50% 70%);
   --color-primary-muted: hsl(43 35% 18%);
   --color-text-highlight: hsl(240 8% 88%);
@@ -26,7 +25,6 @@
     --color-widget-background: hsl(0 0% 100%);
     --color-widget-background-highlight: hsl(0 0% 95%);
     --color-separator: hsl(0 0% 86%);
-    --color-widget-content-border: hsl(0 0% 84%);
     --color-primary: hsl(43 70% 43%);
     --color-primary-muted: hsl(43 75% 91%);
     --color-text-highlight: hsl(0 0% 12%);

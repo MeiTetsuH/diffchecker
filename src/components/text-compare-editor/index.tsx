@@ -1,15 +1,12 @@
 'use client';
 
 import { useDeferredValue, useMemo, useState } from 'react';
-import { diffChars, diffWords, type Change } from 'diff';
+import type { Change } from 'diff';
 import { alignSequences } from '@/lib/sequence-diff';
+import { createInlineDiffer, INLINE_LIMIT_MESSAGE, type HighlightMode } from '@/lib/inline-diff';
 import styles from './styles.module.css';
 
-type HighlightMode = 'word' | 'character';
-
 const INITIAL_VISIBLE_LINES = 500;
-/** Keeps the per-line diff cache from growing without bound on long sessions. */
-const MAX_CACHED_LINES = 4_000;
 
 /**
  * spellCheck alone only hides the squiggles. On iOS the keyboard would still
@@ -21,49 +18,6 @@ const CODE_INPUT_PROPS = {
   autoCorrect: 'off',
   autoComplete: 'off',
 } as const;
-
-function fallbackChanges(original: string, changed: string): Change[] {
-  const changes: Change[] = [];
-  if (original) {
-    changes.push({ value: original, removed: true, added: false, count: original.length });
-  }
-  if (changed) {
-    changes.push({ value: changed, removed: false, added: true, count: changed.length });
-  }
-  return changes;
-}
-
-function compareLine(original: string, changed: string, mode: HighlightMode): Change[] {
-  if (original === changed) {
-    return [{ value: original, removed: false, added: false, count: original.length }];
-  }
-
-  const changes = mode === 'word'
-    ? diffWords(original, changed, { maxEditLength: 2_000 })
-    : diffChars(original, changed, { maxEditLength: 2_000 });
-
-  return changes ?? fallbackChanges(original, changed);
-}
-
-/**
- * `compareLine` is pure, so memoising it on all three inputs is sound. The cache
- * lives at module scope: React treats both refs and memo results as off-limits
- * for mutation during render, and a keystroke only ever changes a line or two,
- * so reusing the rest is what keeps typing cheap on large documents.
- * The key is length-prefixed so no pair of lines can collide.
- */
-const lineCache = new Map<string, Change[]>();
-
-function cachedCompareLine(left: string, right: string, mode: HighlightMode): Change[] {
-  const key = `${mode}:${left.length}:${left}${right}`;
-  const cached = lineCache.get(key);
-  if (cached) return cached;
-
-  if (lineCache.size > MAX_CACHED_LINES) lineCache.clear();
-  const changes = compareLine(left, right, mode);
-  lineCache.set(key, changes);
-  return changes;
-}
 
 function DiffContent({ changes, side }: { changes: Change[]; side: 'left' | 'right' }) {
   return changes.map((part, index) => {
@@ -89,13 +43,16 @@ export default function TextCompareEditor() {
     [changedLines, originalLines],
   );
   const lines = alignment.items;
-  const visible = useMemo(
-    () => lines.slice(0, visibleLines).map((line) => ({
-      ...line,
-      changes: cachedCompareLine(line.left ?? '', line.right ?? '', highlightMode),
-    })),
-    [highlightMode, lines, visibleLines],
-  );
+  const { visible, highlightLimited } = useMemo(() => {
+    const compare = createInlineDiffer(highlightMode);
+    let highlightLimited = false;
+    const visible = lines.slice(0, visibleLines).map((line) => {
+      const result = compare(line.left, line.right);
+      highlightLimited ||= result.limited;
+      return { ...line, changes: result.changes };
+    });
+    return { visible, highlightLimited };
+  }, [highlightMode, lines, visibleLines]);
   const changedLineCount = useMemo(() => lines.reduce(
     (count, line) => count + (line.left !== line.right ? 1 : 0),
     0,
@@ -146,6 +103,9 @@ export default function TextCompareEditor() {
           These texts differ too heavily to align exactly, so lines were paired by
           position. Insertions and deletions may appear shifted.
         </div>
+      )}
+      {highlightLimited && !isUpdating && (
+        <div className={styles.limitedNotice} role="status">{INLINE_LIMIT_MESSAGE}</div>
       )}
       {/* One scroll container holding paired rows: the two sides stay aligned
           and scroll together even when a long line wraps. The header sits

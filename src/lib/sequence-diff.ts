@@ -38,6 +38,7 @@ export function alignSequences<T>(
 ): AlignmentResult<T> {
   const changes = diffArrays(left, right, {
     maxEditLength: options.maxEditLength ?? 2_000,
+    timeout: 50,
   });
 
   if (!changes) {

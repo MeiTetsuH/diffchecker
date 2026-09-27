@@ -1,13 +1,9 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import * as XLSX from 'xlsx';
+import { sheetToRows } from '@/lib/sheet-rows';
+import type { LoadedFile } from './drop-zone';
 import styles from './styles.module.css';
-
-interface LoadedFile {
-  file: File;
-  data: XLSX.WorkBook;
-}
 
 interface SpreadsheetPreviewProps {
   loaded: LoadedFile;
@@ -25,8 +21,8 @@ export const SpreadsheetPreview: React.FC<SpreadsheetPreviewProps> = ({
   setHeaderLine,
 }) => {
   const sheet = loaded.data.Sheets[sheetName];
-  const rows: (string | number | boolean)[][] = useMemo(
-    () => (sheet ? (XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false, raw: false }) as (string | number | boolean)[][]) : []),
+  const rows = useMemo(
+    () => sheetToRows(sheet),
     [sheet],
   );
   // Match the diff engine: columns are counted across the whole sheet, because

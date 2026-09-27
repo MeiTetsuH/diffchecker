@@ -5,6 +5,7 @@
 
 import * as XLSX from 'xlsx';
 import { alignSequences } from '@/lib/sequence-diff';
+import { sheetToRows } from '@/lib/sheet-rows';
 import type { DiffRow, DiffHeader, DiffData, RowRecord } from '@/types/excel-diff';
 
 export interface DiffInput {
@@ -24,20 +25,6 @@ function clampHeaderLine(headerLine: number, rowsLength: number): number {
   if (parsed < 1) return 1;
   if (parsed > max) return max;
   return parsed;
-}
-
-/**
- * Cells are read as the text the spreadsheet displays (`raw: false`), the same
- * text the CSV tab shows. Raw values would render dates as serial numbers,
- * percentages as fractions, and strip the leading zeros off CSV codes.
- */
-function toRows(sheet: XLSX.WorkSheet | undefined): CellValue[][] {
-  if (!sheet) return [];
-  return XLSX.utils.sheet_to_json<CellValue[]>(sheet, {
-    header: 1,
-    blankrows: false,
-    raw: false,
-  }) as CellValue[][];
 }
 
 /**
@@ -103,8 +90,8 @@ export function computeDiff(input: DiffInput): DiffData {
   const lSheet = input.leftWorkbook.Sheets[input.leftSheet];
   const rSheet = input.rightWorkbook.Sheets[input.rightSheet];
 
-  const lRows = toRows(lSheet);
-  const rRows = toRows(rSheet);
+  const lRows = sheetToRows(lSheet);
+  const rRows = sheetToRows(rSheet);
 
   const leftHeaderLine = clampHeaderLine(input.leftHeaderLine, lRows.length);
   const rightHeaderLine = clampHeaderLine(input.rightHeaderLine, rRows.length);
@@ -139,8 +126,7 @@ export function computeDiff(input: DiffInput): DiffData {
 
   const header: DiffHeader = { headers: combinedHeaders, headersLeft, headersRight };
 
-  // `blankrows: false` mirrors toRows() so the CSV tab and the table tab agree
-  // on which source rows exist and therefore on row numbering.
+  // Skip blank rows in both views, but preserve displayed Excel errors.
   const lCsv = lSheet ? XLSX.utils.sheet_to_csv(lSheet, { blankrows: false }) : '';
   const rCsv = rSheet ? XLSX.utils.sheet_to_csv(rSheet, { blankrows: false }) : '';
 
