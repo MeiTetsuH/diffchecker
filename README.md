@@ -156,6 +156,18 @@ npm test -- src/lib/inline-diff.test.ts src/components/excel-compare-editor/diff
 
 The existing Cloudflare Pages Git integration builds and publishes production after a push to `main`; a local `git commit` does not deploy. For a separate Pages project, use `npm run build` and output directory `out`. See the [screenshot notes](docs/screenshots/README.md) to refresh the examples.
 
+## 依赖维护记录 / Dependency maintenance
+
+2026-10-24 的维护基线为 `2d76c11e6dc5fe73229089ecac27c823415afcb6`。这是本项目自己的依赖维护记录，不是外部上游 fork 的私有代码补丁。应用源码、Pages 配置和安全响应头未因以下开发链补丁而改变。
+
+- `package.json` 的 `overrides.miniflare.undici = ^7.30.1` 与 `package-lock.json` 的 7.30.1 解析修复 [GHSA-xjj6-f33q-929c](https://github.com/advisories/GHSA-xjj6-f33q-929c)。等待 Miniflare 自身稳定解析到兼容的安全版本后，才能验证并移除此覆盖。
+- `package-lock.json` 将 `eslint-plugin-react-hooks` 开发链中的 Zod 4.4.3 更新为其版本范围允许的 4.6.7，覆盖 [GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5) 的修复下限 4.6.6；没有添加 Zod override，也没有跨主版本强制升级。
+- 保留 `.nvmrc` 的 Node 24.22.1、`package.json` 的运行时门槛和已验证的锁文件。后续依赖更新使用 npm，检查实际依赖路径与最新审计，再运行 `npm run verify`，不要用删除锁文件或强制全量升级替代兼容性验证。
+
+这两项是开发工具链风险，不代表已证实存在生产页面攻击路径。`main` 的文档提交也可能触发现有 Pages 自动构建；应检查实际发布结果，避免再手动重复部署。
+
+The Undici override and Zod lock resolution above belong to development tooling. Keep the lockfile and verify the real dependency paths before removing either fix; successful CI and a successful production Pages deployment are separate checks.
+
 ## 代码结构 / Code map
 
 | 路径 / Path | 职责 / Responsibility |
